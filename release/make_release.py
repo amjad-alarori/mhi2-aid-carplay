@@ -69,11 +69,15 @@ def main():
                 files["%s/%s" % (name, p.relative_to(build / name).as_posix())] = (p.read_bytes(), False)
     readme = (HERE / "README-FIRST.txt").read_text().replace("@@VERSION@@", version)
     files["README-FIRST.txt"] = (readme.replace("\n", "\r\n").encode("ascii"), False)   # opens in Notepad too
+    readme_pl = (HERE / "README-FIRST.pl.txt").read_text(encoding="utf-8").replace("@@VERSION@@", version)
+    files["README-FIRST.pl.txt"] = (readme_pl.replace("\n", "\r\n").encode("utf-8"), False)   # Polish letters: UTF-8
     files["Copy-to-SD-Windows.bat"] = ((HERE / "Copy-to-SD-Windows.bat").read_bytes(), False)
     files["Copy-to-SD-macOS.command"] = ((HERE / "Copy-to-SD-macOS.command").read_bytes(), True)
     files["tools/copy-to-sd.ps1"] = ((HERE / "tools/copy-to-sd.ps1").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"), False)
     files["docs/01-install-MIB-and-backup.md"] = ((PROJ / "docs/en/01-mib-install-backup.md").read_bytes(), False)
     files["docs/in-car-guide.md"] = ((PROJ / "docs/en/09-in-car-guide.md").read_bytes(), False)
+    files["docs/01-instalacja-MIB-i-backup.pl.md"] = ((PROJ / "docs/pl/01-mib-instalacja-backup.md").read_bytes(), False)
+    files["docs/tutorial-w-aucie.pl.md"] = ((PROJ / "docs/pl/09-tutorial-w-aucie.md").read_bytes(), False)
     files["LICENSE.txt"] = ((PROJ / "LICENSE").read_bytes(), False)
     top = "mhi2-aid-carplay-cards-" + version.rsplit("-", 1)[1]
     out.mkdir(parents=True, exist_ok=True)

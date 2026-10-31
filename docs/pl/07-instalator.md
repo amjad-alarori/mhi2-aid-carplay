@@ -2,7 +2,7 @@
 
 Stan: **przetestowany w aucie (październik 2026).** Kod: [`installer/`](../../installer/).
 Build SD tworzy `installer/build_sd.py` (w katalogu wyjściowym `BUILD-MANIFEST.txt` z hashami wszystkich plików, wersja
-w GEM `pmcp-0.2.0-mu1161-791-<id buildu>`, gdzie ID to pierwsze 8 znaków SHA-256 manifestu i szablonu `pmcp.sh`).
+w GEM `pmcp-0.3.0-mu1161-791-<id buildu>`, gdzie ID to pierwsze 8 znaków SHA-256 manifestu i szablonu `pmcp.sh`).
 Kartę instalacyjną składa `installer/build_card_install.py`, kartę ratunkową `installer/build_rescue.py`.
 
 ## Paczki (budowane razem, wgrywane partiami przyciskami M.I.B.)
@@ -13,10 +13,10 @@ Kartę instalacyjną składa `installer/build_card_install.py`, kartę ratunkow�
 | A Obraz CarPlay + warianty `core.so` | `dio_manager` → wrapper, `/mnt/app/carplaymaps` | działa |
 | B Mechanizm Java + NavActiveIgnore | jeden stały blok w `lsd.sh` + JAR | działa; przycisk „3. Install all features” na ekranie głównym (od v1.2.0 bez odblokowania) |
 | C Parametry mapy iPhone'a w URL | tylko `core.so` (wariant `url-map-hybrid`, `showSpeedLimit=yes`) | w menu; na tej jednostce parametr nic nie pokazuje |
-| D Tytuł i wykonawca | JAR `pmcp-np.jar` (`HsmTarget` + `CurrentStationInfo`) | działa ([`nowplaying/`](../../nowplaying/)) |
-| E Natywne prowadzenie (port Tomasza) | „System RG” (sterownik iAP2, `iap2.cfg`, czytnik) + JAR `pmcp-rg.jar` | działa ([`rg/`](../../rg/)) |
-| F Zoom z kierownicy | JAR `pmcp-zoom.jar` (hook w `DSIKeyPanelDispatcher`, tylko krótkie naciśnięcie) | działa ([`hmiextras/`](../../hmiextras/)) |
-| G Dzień/noc mapy na AID | JAR `pmcp-dn.jar` (hooki w `ASLHandler`) | działa ([`hmiextras/`](../../hmiextras/)) |
+| D Tytuł i wykonawca | JAR `pmcp-np.jar` (`HsmTarget` + `CurrentStationInfo`) | działa ([`nowplaying/`](../../nowplaying/README.pl.md)) |
+| E Natywne prowadzenie (port Tomasza) | „System RG” (sterownik iAP2, `iap2.cfg`, czytnik) + JAR `pmcp-rg.jar` | działa ([`rg/`](../../rg/README.pl.md)) |
+| F Zoom z kierownicy | JAR `pmcp-zoom.jar` (hook w `DSIKeyPanelDispatcher`, tylko krótkie naciśnięcie) | działa ([`hmiextras/`](../../hmiextras/README.pl.md)) |
+| G Dzień/noc mapy na AID | JAR `pmcp-dn.jar` (hooki w `ASLHandler`) | działa ([`hmiextras/`](../../hmiextras/README.pl.md)) |
 
 **Etap A nie dotyka HMI** (Java): najgorszy skutek to brak CarPlay/AA, a GEM i „Remove everything” działają.
 
@@ -64,7 +64,8 @@ Warianty `core.so` (`switch` zmienia tylko ten plik, potem restart, bez „4. Co
 | `card-clean` | `maps:/car/instrumentcluster` | 200 / 108 / 400 / 296 | z kartą manewru iPhone'a |
 | `url-map-hybrid` | `…/map?showSpeedLimit=yes` | 200 / 108 / 400 / 296 | parametr ograniczenia prędkości (bez widocznego efektu) |
 | `map-clean-l40` | `maps:/car/instrumentcluster/map` | 160 / 108 / 400 / 296 | przesunięty o 40 kolumn w lewo |
-| **`map-square`** | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | **domyślny (główny przycisk), wybrany po dłuższej jeździe.** Układ mathsls dla MU1161, bliżej kwadratu |
+| `map-square` | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | układ mathsls dla MU1161, bliżej kwadratu, 30 kl./s (domyślny do v1.2.0) |
+| **`map-square-fps40`** | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | **domyślny (główny przycisk) od v1.3.0**: `map-square` przy 40 kl./s (wartość bazowego core, jak u mathsls), w jeździe testowej bez większego opóźnienia niż 30 kl./s; IDR co 10 klatek dawało artefakty |
 
 ## Bramki fail-closed (co musi się zgadzać, zanim cokolwiek zostanie zapisane)
 
@@ -120,10 +121,12 @@ z `MIB_V3.6.0.zip` (`22739f72…9121`); test sprawdza, że oryginalna treść je
    Sprawdź w GEM w nagłówku ekranu pmcp wersję: musi być ta z pierwszej linii `BUILD-MANIFEST.txt`.
 2. W aucie: GEM → `=>M.I.B.<=` → **`pmcp_CarPlay_AID`**. Ekran główny (po angielsku):
    - „1. Check card and unit (read-only)” → `verify`;
-   - „2. Install the CarPlay map on the AID” → `install map-square` (etap A);
-   - „3. Install all features: arrows, ETA, zoom, song title” → skrypt menu `all-on.sh`: `rg-system-on`, potem `java-on`
-     nai, np, rg, zoom, dn po kolei (jeden zestaw, jeden start próbny); stop na pierwszym `PMCP_FAIL`, `*_ALREADY_*` liczy
-     się jako zrobione;
+   - „2. Install the CarPlay map on the AID” → `install map-square-fps40` (etap A);
+   - „3. Install all features or update: …” → skrypt menu `all-on.sh`: `switch map-square-fps40`, `rg-system-on`, potem
+     `java-on` nai, np, zoom, dn, rglu po kolei (jeden zestaw, jeden start próbny); stop na pierwszym `PMCP_FAIL`,
+     `*_ALREADY_*` liczy się jako zrobione (`switch` na już aktywną mapę odpowiada `SWITCH_ALREADY_<wariant>`), więc ten sam
+     przycisk doprowadza każdą wcześniejszą instalację do zestawu z karty; `java-on rglu` zastępuje `rg` (te same klasy,
+     `java_alternative`);
    - „4. Confirm: everything works (only in the first start after 3)” → `java-confirm`;
    - „5. Try again: the next start is a new trial” → `java-retry`;
    - „Status (read-only)”, „Remove everything (back to factory files)” → `restore`;
@@ -166,7 +169,7 @@ shelle `mksh` (rodzina pdksh, jak QNX) i `ksh` (ksh93). Kod wyjścia = liczba ni
   (katalog już przeniesiony) nie blokuje narzędzia;
 - karta ratunkowa: zdrowe radio bez zmian; radio `JAVA` → fabryczny `lsd.sh`, JAR-y usunięte, `DISABLED`; radio z Systemem RG →
   fabryczny sterownik i `iap2.cfg`, `SYSTEM_ON` i `last-boot` usunięte; brak kopii albo brak `lsd.sh` → uczciwe `WYNIK=NIEPEWNY`;
-- menu GEM: liczba skryptów = liczba wpisów menu, składnia, dozwolone akcje, główny przycisk = `map-square`,
+- menu GEM: liczba skryptów = liczba wpisów menu, składnia, dozwolone akcje, główny przycisk = `map-square-fps40`,
   wersja z ID buildu ta sama w `pmcp.sh`, menu i `BUILD-MANIFEST`.
 
 `installer/test/fault_inject.sh SD_BUILD mksh`: test zaników zasilania (wyżej).

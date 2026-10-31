@@ -54,8 +54,8 @@ bootsim() {
 }
 state() { run status; sed -n 's/^Unit state: //p' "$W/out"; }
 
-CHAIN=("install map-clean" "java-on nai" "java-on np" "rg-system-on" "java-on rg" "switch map-clean-l40" "java-off np" \
-       "java-off rg" "rg-system-off" "java-off nai" "restore")
+CHAIN=("install map-clean" "java-on nai" "java-on np" "rg-system-on" "java-on rg" "java-on rglu" "switch map-clean-l40" \
+       "java-off np" "java-off rglu" "rg-system-off" "java-off nai" "restore")
 fresh_unit; FACTORY=$(snapshot)
 for ((t=0; t<${#CHAIN[@]}; t++)); do
     target=${CHAIN[$t]}

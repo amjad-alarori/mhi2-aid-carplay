@@ -22,6 +22,7 @@ This repository holds only what is specific to this head unit. It builds on the 
 | NavActiveIgnore: the head unit no longer stops or blocks phone navigation | works |
 | Native VW guidance from the iPhone: distance and time to destination on the VW bar and in the left dial | works |
 | Native turn arrow and distance to the manoeuvre (appears once the car moves) | works |
+| Native VW lane guidance, including U-turn lanes (when the phone app sends lanes) | works |
 | Map zoom with the steering-wheel arrows | works |
 | CarPlay track title and artist on the AID | works |
 | Day/night switching of the cluster map | works |
@@ -56,7 +57,8 @@ The stream is 800×480 and lies 1:1 on the AID panel. Safe area values are x / y
 | `card-clean` | `maps:/car/instrumentcluster` | 200 / 108 / 400 / 296 | with the iPhone's manoeuvre card |
 | `url-map-hybrid` | `…/map?showSpeedLimit=yes` | 200 / 108 / 400 / 296 | speed-limit parameter (no effect seen) |
 | `map-clean-l40` | `maps:/car/instrumentcluster/map` | 160 / 108 / 400 / 296 | 40 columns to the left |
-| `map-square` (default) | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | mathsls's MU1161 layout, closer to square; best after a longer drive |
+| `map-square` | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | mathsls's MU1161 layout, closer to square; best after a longer drive; 30 fps |
+| `map-square-fps40` (default) | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | `map-square` at 40 fps (as mathsls); no more lag than 30 fps in a test drive |
 
 All variants declare a physical size of 240×144 mm. Switching a variant swaps one file (`core.so`) and needs a restart.
 
@@ -152,10 +154,11 @@ English in [`docs/en/`](docs/en/), Polish in [`docs/pl/`](docs/pl/):
 | Installing M.I.B. and backing up the unit (do this first) | [01-mib-install-backup](docs/en/01-mib-install-backup.md) | [01-mib-instalacja-backup](docs/pl/01-mib-instalacja-backup.md) |
 | HMI analysis: map stream, AID size detection, CarPlay and guidance classes | [04-lsd-jxe-decompilation](docs/en/04-lsd-jxe-decompilation.md) | [04-lsd-jxe-dekompilacja](docs/pl/04-lsd-jxe-dekompilacja.md) |
 | Installer design | [07-installer](docs/en/07-installer.md) | [07-instalator](docs/pl/07-instalator.md) |
+| Audit: AID fast start (tried, failed, why the AID needed a bus sleep) | [14-fast-start-audit](docs/en/14-fast-start-audit.md) | [14-audyt-szybki-start](docs/pl/14-audyt-szybki-start.md) |
 | Step-by-step guide in the car | [09-in-car-guide](docs/en/09-in-car-guide.md) | [09-tutorial-w-aucie](docs/pl/09-tutorial-w-aucie.md) |
 | Interactive AID frame model | [aid-frame-map.html](docs/aid-frame-map.html) | [aid-frame-map.pl.html](docs/aid-frame-map.pl.html) |
 
-The READMEs inside the component directories are in Polish.
+The component directories have an English `README.md` and a Polish `README.pl.md`.
 
 ## Credits
 

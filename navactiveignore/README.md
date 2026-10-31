@@ -1,67 +1,69 @@
-# NavActiveIgnore z własnych klas firmware'u
+# NavActiveIgnore from the unit's own firmware classes
 
-Nasz odpowiednik łatki „Ignore navigation-active status from smartphone”. Gdy iPhone prowadzi, HMI nie zgłasza
-„nawigacja w telefonie”, nie zatrzymuje nawigacji VW i nie zabiera telefonowi prowadzenia. Dzięki temu mapa
-na AID dalej działa, a CarPlay zachowuje swoje prowadzenie.
+[Polska wersja: README.pl.md](README.pl.md)
 
-Podstawa: Tomasz (tomasz-twardzicki), `upstream/tomasz/MU1427/NavActiveIgnore/`, GPL-3.0-or-later.
-Pomysł oryginalny: MQB Toolbox `NavActiveIgnore.jar`.
+Our equivalent of the "Ignore navigation-active status from smartphone" patch. While the iPhone is guiding, the HMI does not report
+"navigation on the phone", does not stop VW navigation and does not take guidance away from the phone. This keeps the map
+on the AID working, and CarPlay keeps its guidance.
 
-## Dlaczego nie generyczny JAR
+Based on: Tomasz (tomasz-twardzicki), `upstream/tomasz/MU1427/NavActiveIgnore/`, GPL-3.0-or-later.
+Original idea: MQB Toolbox `NavActiveIgnore.jar`.
 
-Generyczny JAR (`CarPlayNavigationPatch.jar` u mathsls i omonob, SHA-256 `a4803f7f…`) podmienia całe klasy HMI
-skompilowane z wadliwej dekompilacji:
-- stałe int mają odwróconą kolejność bajtów: 100012 → -1400504064, 2910009 → 963062784;
-- stałe long są wyzerowane (timeouty 5000 ms i 300 ms stają się 0);
-- na gorących ścieżkach jest `printStackTrace`.
+## Why not the generic JAR
 
-Nasz build bierze **fabryczne klasy** z przekonwertowanego `lsd.jxe` i zmienia tylko wskazane instrukcje (ASM).
-Każda zmiana sprawdza dokładny wzorzec i liczbę trafień, a przy niezgodności build się przerywa.
+The generic JAR (`CarPlayNavigationPatch.jar` in mathsls and omonob, SHA-256 `a4803f7f…`) replaces whole HMI classes
+compiled from a faulty decompilation:
+- int constants have their byte order reversed: 100012 → -1400504064, 2910009 → 963062784;
+- long constants are zeroed (the 5000 ms and 300 ms timeouts become 0);
+- there is `printStackTrace` on hot paths.
 
-## Zmiany (K4525)
+Our build takes the **factory classes** from the converted `lsd.jxe` and changes only the selected instructions (ASM).
+Every change checks the exact pattern and the number of matches, and on a mismatch the build stops.
 
-| Klasa | Zmiana |
+## Changes (K4525)
+
+| Class | Change |
 |---|---|
-| `DSICarplayProxy.requestModeChange` | usuwa z żądań do iPhone'a „natywna nawigacja przejmuje” (`appStateID=2, state=true, speechMode=0`); całe wywołanie pomija tylko wtedy, gdy nic innego nie zostaje |
-| `CarPlayModeHandling.handleModeChanges` | gdy prowadzi CarPlay: bez `valueChangedBoolean(2910009, true)`, bez `setActiveNavigation(2)`, bez `stopGuidance(6)`; gdy prowadzi HMI: bez `requestModeChange(…, "User initiated")` |
-| `ASLNavigationServices.stopGuidance` | ignoruje powód 6 (smartfon przejął nawigację) |
-| AA `NavigationListener` | `updateGuidanceActive` i `stopGuidance` nic nie robią, `isGuidanceActive` zwraca false |
-| AA `RequestHandler.performNavFocusRequestNotification` | oba typy fokusu jak „projected”, bez `stopGuidance()` i bez `valueChangedBoolean(2910005, true)` |
+| `DSICarplayProxy.requestModeChange` | removes "native navigation takes over" (`appStateID=2, state=true, speechMode=0`) from the requests to the iPhone; skips the whole call only when nothing else is left |
+| `CarPlayModeHandling.handleModeChanges` | while CarPlay is guiding: no `valueChangedBoolean(2910009, true)`, no `setActiveNavigation(2)`, no `stopGuidance(6)`; while the HMI is guiding: no `requestModeChange(…, "User initiated")` |
+| `ASLNavigationServices.stopGuidance` | ignores reason 6 (smartphone took over navigation) |
+| AA `NavigationListener` | `updateGuidanceActive` and `stopGuidance` do nothing, `isGuidanceActive` returns false |
+| AA `RequestHandler.performNavFocusRequestNotification` | both focus types treated as "projected", no `stopGuidance()` and no `valueChangedBoolean(2910005, true)` |
 
-Różnice względem MU1427 (Tomasz): inne ID właściwości (2910009 i 2910005 zamiast 3010002 i 3110002), switch
-w `RequestHandler` obsługiwany w obu formach (table i lookup). Wywołania exbox
-(`setSmartphoneGuidanceActive/Inactive`, tylko K4525) zostają fabryczne: trafiają wyłącznie do `DSIExBoxM`,
-zewnętrznej skrzynki nawigacji.
+Differences from MU1427 (Tomasz): different property IDs (2910009 and 2910005 instead of 3010002 and 3110002), the switch
+in `RequestHandler` handled in both forms (table and lookup). The exbox calls
+(`setSmartphoneGuidanceActive/Inactive`, K4525 only) stay factory: they go only to `DSIExBoxM`,
+the external navigation box.
 
-Celowo **bez** zmiany data rate (`ChangeDataRate`/`ChangeDataRateSequence`). U Tomasza obie próby zawiesiły mapę
-na „loading map”.
+Deliberately **no** data rate change (`ChangeDataRate`/`ChangeDataRateSequence`). For Tomasz both attempts froze the map
+on "loading map".
 
-## Budowanie
+## Building
 
 ```sh
 ASM_DIR=upstream/tools/jxe2jar/repo/tools/uninline/lib \
   navactiveignore/build.sh K4525 archives/x-k4525/jar/lsd-k4525.jar build/nai-k4525
 ```
 
-Skrypt:
-- sprawdza hashe ASM 9.7 i przekonwertowanego jar;
-- łata klasy, weryfikuje je (ASM `SimpleVerifier`) i wymusza wersję klas 46 (fabryczny J9; desktopowa Java przyjmie 49 i nie wyłapie błędu);
-- robi raport `report/*.diff` (javap, fabryczne a patchowane);
-- pakuje deterministyczny JAR i uruchamia test hosta (`-Xverify:all`, logika helpera);
-- zapisuje `manifest.txt` z hashami wejść i wyjść.
+The script:
+- checks the hashes of ASM 9.7 and of the converted jar;
+- patches the classes, verifies them (ASM `SimpleVerifier`) and forces class version 46 (factory J9; desktop Java accepts 49 and would not catch the error);
+- writes a report `report/*.diff` (javap, factory vs patched);
+- packs a deterministic JAR and runs the host test (`-Xverify:all`, helper logic);
+- writes `manifest.txt` with the hashes of inputs and outputs.
 
-Wynik K4525 (2026-10-20): `NavActiveIgnore.jar`, 13,214 B, SHA-256
-`a6781738a658aa64151e24e481af726347cc99967f0a5a24b530b66215cd9c7b` (powtarzalny).
+K4525 result (2026-10-20): `NavActiveIgnore.jar`, 13,214 B, SHA-256
+`a6781738a658aa64151e24e481af726347cc99967f0a5a24b530b66215cd9c7b` (reproducible).
 
-## Status i ograniczenia
+## Status and limitations
 
-- **Profil MU1161 (nasze auto, backup 2026-10-21):** pięć łatanych klas jest bajtowo identycznych z K4525, ID właściwości
-  te same. Wynik `build/nai-mu1161/NavActiveIgnore.jar`, SHA-256 `823adeb022363aafc66979670e9cf4a6c58ac45297f2f2eea1680f825881ba2d`.
-- **v2 (2026-10-22, po code review):** oba wywołania helpera w `DSICarplayProxy.requestModeChange` są osłonięte
-  (`buildtools/Guard.java`: przy błędzie helpera zostaje fabryczne żądanie), build sprawdza API J9 (`buildtools/RefCheck.java`).
-  Wynik `build/nai-mu1161-v2/NavActiveIgnore.jar`, 13,285 B, SHA-256 `dbd031ecb28a2ec91c4704e133f4e2126cf1fe11498f673bc2e07fc0b1aaa7ab`.
-  Klasy są identyczne z buildem K4525, różni się tylko MANIFEST.MF. Instalujemy JAR z profilu zgodnego z firmware'em w aucie.
-- Nie testowany na fabrycznym J9 (Tomasz uruchamiał ARM J9 pod QEMU) ani w aucie.
-- Instalacja (wpis `-Xbootclasspath/p:` w `lsd.sh`, kopia zapasowa, rollback) należy do instalatora fail-closed.
-  Odzysk: usunąć JAR z `/mnt/app/eso/hmi/lsd/jars/`; J9 pomija brakujące wpisy bootclasspath (Tomasz).
-- Zastępuje generyczny `CarPlayNavigationPatch.jar`. Nie instalować obu naraz.
+- **MU1161 profile (our car, backup 2026-10-21):** the five patched classes are byte-identical to K4525, the property IDs
+  are the same. Result `build/nai-mu1161/NavActiveIgnore.jar`, SHA-256 `823adeb022363aafc66979670e9cf4a6c58ac45297f2f2eea1680f825881ba2d`.
+- **v2 (2026-10-22, after code review):** both helper calls in `DSICarplayProxy.requestModeChange` are guarded
+  (`buildtools/Guard.java`: on a helper error the factory request stays), the build checks the J9 API (`buildtools/RefCheck.java`).
+  Result `build/nai-mu1161-v2/NavActiveIgnore.jar`, 13,285 B, SHA-256 `dbd031ecb28a2ec91c4704e133f4e2126cf1fe11498f673bc2e07fc0b1aaa7ab`.
+  The classes are identical to the K4525 build, only MANIFEST.MF differs. We install the JAR from the profile that matches the firmware in the car.
+- Not tested on the factory J9 (Tomasz ran ARM J9 under QEMU) or in the car.
+- Installation (the `-Xbootclasspath/p:` entry in `lsd.sh`, backup, rollback) belongs to the fail-closed installer.
+  Recovery: remove the JAR from `/mnt/app/eso/hmi/lsd/jars/`; J9 skips missing bootclasspath entries (Tomasz).
+- Replaces the generic `CarPlayNavigationPatch.jar`. Do not install both at once.

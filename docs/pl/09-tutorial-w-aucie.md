@@ -1,6 +1,6 @@
 # Tutorial w aucie: instalacja krok po kroku (Passat B8, MHI2 MU1161, AID 791)
 
-Wersja instalatora: **`pmcp-0.2.0-mu1161-791-…`** (końcówka to identyfikator buildu; jest w pierwszej linii
+Wersja instalatora: **`pmcp-0.3.0-mu1161-791-…`** (końcówka to identyfikator buildu; jest w pierwszej linii
 `BUILD-MANIFEST.txt`, w `PMCP_INSTRUKCJA.txt` na karcie 1 i na górze ekranu zielonego menu).
 Ekran główny zielonego menu jest po angielsku. Podmenu `pmcp_advanced` ma pierwotne polskie napisy bez ogonków.
 
@@ -30,7 +30,7 @@ zawsze slot **SD1**.
 - Karta SD w zielonym menu jest tylko do odczytu, więc instalator nie zapisze na niej logu (pokazuje
   `PMCP_WARN=SD_LOG_NOT_WRITABLE` i działa dalej). **Fotografuj wynik każdej akcji.**
 - Wejście do zielonego menu: przytrzymaj **MENU ~10 s** → `=>M.I.B.<=` → **`pmcp_CarPlay_AID`**. Nagłówek musi pokazać
-  wersję twojego buildu (`pmcp-0.2.0-mu1161-791-…`); inna wersja = stop.
+  wersję twojego buildu (`pmcp-0.3.0-mu1161-791-…`); inna wersja = stop.
 - „Restart” = **przytrzymaj pokrętło głośności ~10 s** (radio się wyłącza i startuje). Wyłączenie i włączenie auta od razu
   to nie restart (radio jeszcze nie zasnęło).
 
@@ -47,9 +47,10 @@ radia i niczego nie zmienia.
 
 ## Krok 2. Instalacja mapy (etap A)
 
-1. **„2. Install the CarPlay map on the AID”** → oczekiwane `PMCP_INSTALL_OK stage=A variant=map-square ...`.
-   (`map-square` to układ domyślny: układ forka mathsls, sama mapa, bliżej kwadratu; najlepszy z pięciu po dłuższej jeździe.
-   Po kroku 3 manewr, ETA i dystans pokazuje natywnie VW.)
+1. **„2. Install the CarPlay map on the AID”** → oczekiwane `PMCP_INSTALL_OK stage=A variant=map-square-fps40 ...`.
+   (`map-square-fps40` to układ domyślny: układ forka mathsls, sama mapa, bliżej kwadratu, najlepszy z pięciu po dłuższej
+   jeździe; 40 klatek na sekundę jak u mathsls, w jeździe testowej bez większego opóźnienia niż 30. `map-square` to to samo
+   przy 30. Po kroku 3 manewr, ETA i dystans pokazuje natywnie VW.)
 2. Restart (pokrętło ~10 s).
 3. Podłącz iPhone'a (CarPlay), włącz Apple Maps albo Google Maps i **uruchom prowadzenie do celu**. Na AID przełącz widok na
    nawigację/mapę. Sterowanie AID w tym aucie (prawa strona kierownicy): **przyciski widoku** (układ licznika), między nimi
@@ -65,19 +66,24 @@ radia i niczego nie zmienia.
 3. Inne układy w tym samym podmenu (każda zmiana → restart; układy: [mapa ramki AID](../aid-frame-map.pl.html)):
    `card-clean` (z kartą manewru iPhone'a), `url-map-hybrid` (mapa z parametrem ograniczenia prędkości, który w aucie nic
    nie pokazał), `map-clean-l40` (mapa 40 kolumn w lewo), `map-clean` (200 / 108 / 400 / 296).
-   Powrót do domyślnego: „Zmien wariant na: map-square”.
+   Powrót do domyślnego: „Zmien wariant na: map-square-fps40”.
 
 Bez mapy na AID nie przechodź do kroku 3. Etap A nie zmienia startu ekranu radia: najgorszy skutek to brak obrazu CarPlay,
 a zielone menu z „Remove everything (back to factory files)” działa zawsze.
 
-## Krok 3. Instalacja wszystkich funkcji
+## Krok 3. Instalacja wszystkich funkcji (albo aktualizacja)
 
-**„3. Install all features: arrows, ETA, zoom, song title”** → oczekiwane **`PMCP_ALL_ON_OK`**.
+**„3. Install all features or update: main map, arrows, lanes, ETA, zoom, song title”** → oczekiwane **`PMCP_ALL_ON_OK`**.
 
-Uruchamia po kolei: system prowadzenia (łatany sterownik iAP2, `iap2.cfg`, czytnik) i pięć paczek Java (NavActiveIgnore,
-tytuł utworu, prowadzenie, zoom, dzień/noc). Wszystkie trafiają do **jednego zestawu**, więc jest jeden start próbny i jedno
+Uruchamia po kolei: główny układ mapy (`map-square-fps40`; pomijany, jeśli już jest), system prowadzenia (łatany sterownik
+iAP2, `iap2.cfg`, czytnik) i pięć paczek Java (NavActiveIgnore, tytuł utworu, prowadzenie z pasami ruchu i pasami do
+zawracania, zoom, dzień/noc). Wszystkie trafiają do **jednego zestawu**, więc jest jeden start próbny i jedno
 potwierdzenie. Zatrzymuje się na pierwszym błędzie (`PMCP_FAIL=ALL_ON_STOPPED_AT_...`; wcześniejsze kroki zostają, ekran
 pokazuje które). Ponowne naciśnięcie, gdy wszystko jest włączone, niczego nie zmienia.
+
+**Aktualizacja wcześniejszej instalacji (v1.0-v1.2):** ten sam przycisk. Z nową kartą 1: „1. Check” (pokazuje
+zainstalowany stan), potem „3. ...” → `PMCP_ALL_ON_OK`. Kroki już zrobione są pomijane (`*_ALREADY_*`); mapa przełącza się
+na `map-square-fps40`, a prowadzenie `rg` zastępuje `rglu` (pasy). Dalej ten sam start próbny i Confirm co niżej.
 
 ## Krok 4. Start próbny, test, potwierdzenie
 
@@ -96,6 +102,8 @@ Java zmienia start ekranu radia, więc nowy zestaw przechodzi **start próbny**:
 1. Restart (pokrętło ~10 s). Ten start jest próbny.
 2. Sprawdź:
    - radio startuje normalnie (ekran, radio, menu) i **CarPlay się łączy** (po kablu; raz odłącz i podłącz);
+   - pasy: na skrzyżowaniu z pasami wyświetlanie pasów VW na AID (pasy ruchu muszą być włączone w ustawieniach VW i wysyłane
+     przez aplikację w telefonie); pas do zawracania ma własną strzałkę;
    - prowadzenie w Apple Maps: mapa CarPlay **zostaje** na AID (NavActiveIgnore); czas i dystans do celu na pasku VW i w lewej
      tarczy; strzałka manewru i dystans do manewru (strzałka pojawia się po ruszeniu). Google Maps i Waze: sprawdź, czy też
      działa (nie wiadomo, czy wysyłają te dane);
@@ -160,7 +168,8 @@ wcześniej potwierdzony, ładuje się od razu; jeśli nie, też jest próbny. Po
 3. Prowadzenie, dwie części:
    - **„System RG: wlacz (sterownik iAP2, iap2.cfg, czytnik)”** (nie Java, bez Confirm) → restart → sprawdź **tylko, czy
      CarPlay się łączy**. Jeśli nie: **„System RG: wylacz (fabryczny sterownik i iap2.cfg)”**, restart i pomiń następny punkt.
-   - **„Wlacz: Prowadzenie: strzalki, dystans, czas na AID (wymaga Systemu RG)”**.
+   - **„Wlacz: Prowadzenie + pasy ruchu z zawracaniem (zamiast rg, wymaga Systemu RG)”**. Bez pasów: „Wlacz: Prowadzenie
+     bez pasow ruchu: strzalki, dystans, czas (zamiast rglu, wymaga Systemu RG)”. Włączenie jednego zastępuje drugie.
 4. **„Wlacz: Zoom mapy CarPlay strzalkami na kierownicy”**. Obserwuj, czy nie przeszkadza w menu licznika (te same strzałki).
 5. **„Wlacz: Dzien/noc mapy CarPlay na AID (ponowne wyslanie po starcie)”**. Kluczowy przypadek (zgłoszony przez innego
    właściciela 791, omonob #51): auto na zewnątrz w dzień, światła zgaszone (nie AUTO) → start → mapa musi być jasna. Bez tej
@@ -171,6 +180,7 @@ wcześniej potwierdzony, ładuje się od razu; jeśli nie, też jest próbny. Po
 ```
 INSTALACJA:  karta 1 → 1. Check (STOCK) → 2. Install map → restart → mapa na AID?
              → 3. Install all features → restart (próbny) → test → 4. Confirm → restart → gotowe
+AKTUALIZACJA: nowa karta 1 → 1. Check → 3. Install all features or update → restart (próbny) → test → 4. Confirm → restart
 AWARIA:      start próbny zepsuty → pokrętło 10 s → start fabryczny;   po Confirm zepsute → karta 2 → Remove everything
 RATUNEK:     po użyciu karty 2: pomocnik kopiowania opcja 3 na komputerze ponownie ją uzbraja
 ```

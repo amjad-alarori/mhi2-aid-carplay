@@ -23,6 +23,7 @@ W repo jest tylko to, co dotyczy tego radia. Całość opiera się na pracy proj
 | NavActiveIgnore: radio nie zatrzymuje i nie blokuje nawigacji z telefonu | działa |
 | Natywne prowadzenie VW z iPhone'a: dystans i czas do celu na pasku VW i w lewej tarczy | działa |
 | Natywna strzałka manewru i dystans do manewru (pojawia się po ruszeniu) | działa |
+| Natywne pasy ruchu VW, także pasy do zawracania (gdy aplikacja w telefonie wysyła pasy) | działa |
 | Przybliżanie mapy strzałkami na kierownicy | działa |
 | Tytuł i wykonawca utworu z CarPlay na AID | działa |
 | Przełączanie dzień/noc mapy na liczniku | działa |
@@ -38,10 +39,10 @@ Więcej zdjęć i interaktywny model ramki AID (gdzie obraz trafia na panel w ka
 | Katalog | Co buduje | Trafia do radia |
 |---|---|---|
 | [`patches/mu1161/`](patches/mu1161/) | warianty `core.so` strumienia CarPlay na licznik (safe area, URL, liczba klatek, klatki kluczowe, rozmiar fizyczny) z jednej przypiętej hashem bazy | `core.so` |
-| [`navactiveignore/`](navactiveignore/) | NavActiveIgnore z własnych klas HMI radia | Java (HMI) |
-| [`rg/`](rg/) | natywne prowadzenie: port rozwiązania tomasz-twardzicki z MU1427 na MU1161 (iAP2 RouteGuidance → BAP) | Java, sterownik iAP2, `iap2.cfg`, czytnik |
-| [`nowplaying/`](nowplaying/) | tytuł i wykonawca utworu CarPlay na liczniku | Java (HMI) |
-| [`hmiextras/`](hmiextras/) | zoom z kierownicy i ponowne wysłanie dzień/noc do mapy na liczniku | Java (HMI) |
+| [`navactiveignore/`](navactiveignore/README.pl.md) | NavActiveIgnore z własnych klas HMI radia | Java (HMI) |
+| [`rg/`](rg/README.pl.md) | natywne prowadzenie: port rozwiązania tomasz-twardzicki z MU1427 na MU1161 (iAP2 RouteGuidance → BAP) | Java, sterownik iAP2, `iap2.cfg`, czytnik |
+| [`nowplaying/`](nowplaying/README.pl.md) | tytuł i wykonawca utworu CarPlay na liczniku | Java (HMI) |
+| [`hmiextras/`](hmiextras/README.pl.md) | zoom z kierownicy i ponowne wysłanie dzień/noc do mapy na liczniku | Java (HMI) |
 | [`installer/`](installer/) | instalator na kartę SD uruchamiany z menu GEM w M.I.B., karta ratunkowa, testy na Macu | nic sam z siebie |
 | [`buildtools/`](buildtools/) | kontrole przy budowaniu: osłona try/catch każdego wywołania haka, zgodność z API J9 CDC | nic |
 | [`scripts/`](scripts/) | czytniki obrazów firmware'u tylko do odczytu (QNX6, IFS, LZOZ, JXE → JAR), tester kart SD | nic |
@@ -57,7 +58,8 @@ Strumień ma 800×480 i leży 1:1 na panelu AID. Safe area: x / y / szerokość 
 | `card-clean` | `maps:/car/instrumentcluster` | 200 / 108 / 400 / 296 | z kartą manewru iPhone'a |
 | `url-map-hybrid` | `…/map?showSpeedLimit=yes` | 200 / 108 / 400 / 296 | parametr ograniczenia prędkości (bez efektu) |
 | `map-clean-l40` | `maps:/car/instrumentcluster/map` | 160 / 108 / 400 / 296 | 40 kolumn w lewo |
-| `map-square` (domyślny) | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | układ mathsls dla MU1161, bliżej kwadratu; najlepszy po dłuższej jeździe |
+| `map-square` | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | układ mathsls dla MU1161, bliżej kwadratu; najlepszy po dłuższej jeździe; 30 kl./s |
+| `map-square-fps40` (domyślny) | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | `map-square` przy 40 kl./s (jak u mathsls); w jeździe testowej bez większego opóźnienia niż 30 kl./s |
 
 Wszystkie warianty deklarują rozmiar fizyczny 240×144 mm. Zmiana wariantu podmienia jeden plik (`core.so`) i wymaga restartu.
 
@@ -136,10 +138,11 @@ Po polsku w [`docs/pl/`](docs/pl/), po angielsku w [`docs/en/`](docs/en/):
 | Instalacja M.I.B. i backup radia (zrób najpierw) | [01-mib-instalacja-backup](docs/pl/01-mib-instalacja-backup.md) | [01-mib-install-backup](docs/en/01-mib-install-backup.md) |
 | Analiza HMI: strumień mapy, wykrywanie rozmiaru AID, klasy CarPlay i prowadzenia | [04-lsd-jxe-dekompilacja](docs/pl/04-lsd-jxe-dekompilacja.md) | [04-lsd-jxe-decompilation](docs/en/04-lsd-jxe-decompilation.md) |
 | Projekt instalatora | [07-instalator](docs/pl/07-instalator.md) | [07-installer](docs/en/07-installer.md) |
+| Audyt: szybki start mapy na AID (próby, porażka, dlaczego AID wymagał uśpienia auta) | [14-audyt-szybki-start](docs/pl/14-audyt-szybki-start.md) | [14-fast-start-audit](docs/en/14-fast-start-audit.md) |
 | Instrukcja krok po kroku w aucie | [09-tutorial-w-aucie](docs/pl/09-tutorial-w-aucie.md) | [09-in-car-guide](docs/en/09-in-car-guide.md) |
 | Interaktywny model ramki AID | [aid-frame-map.pl.html](docs/aid-frame-map.pl.html) | [aid-frame-map.html](docs/aid-frame-map.html) |
 
-README w katalogach składników są po polsku.
+Katalogi składników mają `README.md` po angielsku i `README.pl.md` po polsku.
 
 ## Podziękowania
 

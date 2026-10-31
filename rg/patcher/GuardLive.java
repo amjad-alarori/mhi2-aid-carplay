@@ -12,9 +12,13 @@ import java.util.*;
  *   attach, detach                                                                                       -> nothing
  *   accepted(boolean stockResult, Function)                                                              -> stockResult
  *   descriptorRouteState(NavigationService)  -> the stock navigationService.getRouteGuidanceState() it replaced
+ *   laneIterator(NavigationService)          -> the stock navigationService.getLaneGuidance() it replaced (lanes)
+ *   lanesVisible(NavigationService)          -> the stock navigationService.isSetupLaneGuidanceActive() (lanes)
+ * With Tomasz's lanes (v1.4.0) LaneGuidance gets no "lanes" fill hook; its factory builder calls laneIterator twice,
+ * descriptorRouteState and lanesVisible once instead (6 calls with attach/detach).
  * Expected call counts per class are asserted; anything unknown aborts the build.
  *
- * usage: java GuardLive <stockClassesDir> <patchedClassesDir>
+ * usage: java GuardLive <stockClassesDir> <patchedClassesDir> [base|lanes]
  */
 public final class GuardLive {
     static final String BASE = "de/vw/mib/bap/mqbab2/navsd/functions/";
@@ -31,7 +35,7 @@ public final class GuardLive {
         Path stock = Paths.get(a[0]), patched = Paths.get(a[1]);
         // calls per class: fill hook + attach + detach (+ accepted, + destinationValidity, + descriptorRouteState)
         String[] classes = {"ManeuverDescriptor", "DistanceToNextManeuver", "RGStatus", "LaneGuidance", "DistanceToDestination", "TimeToDestination"};
-        int[] want = {5, 4, 4, 3, 5, 4};
+        int[] want = {5, 4, 4, a.length > 2 && a[2].equals("lanes") ? 6 : 3, 5, 4};
         expect(stockRouteStateCalls(stock.resolve(BASE + "ManeuverDescriptor.class")) == 1, "stock getRouteGuidanceState call");
         for (int i = 0; i < classes.length; i++) {
             Path p = patched.resolve(BASE + classes[i] + ".class");
@@ -77,6 +81,16 @@ public final class GuardLive {
         if (c.name.equals("descriptorRouteState")) {
             expect(c.desc.equals("(L" + NAVSVC + ";)I"), "descriptorRouteState" + c.desc);
             l.add(new MethodInsnNode(Opcodes.INVOKEINTERFACE, NAVSVC, "getRouteGuidanceState", "()I", true));
+            return l;
+        }
+        if (c.name.equals("laneIterator")) {
+            expect(c.desc.equals("(L" + NAVSVC + ";)Ljava/util/Iterator;"), "laneIterator" + c.desc);
+            l.add(new MethodInsnNode(Opcodes.INVOKEINTERFACE, NAVSVC, "getLaneGuidance", "()Ljava/util/Iterator;", true));
+            return l;
+        }
+        if (c.name.equals("lanesVisible")) {
+            expect(c.desc.equals("(L" + NAVSVC + ";)Z"), "lanesVisible" + c.desc);
+            l.add(new MethodInsnNode(Opcodes.INVOKEINTERFACE, NAVSVC, "isSetupLaneGuidanceActive", "()Z", true));
             return l;
         }
         throw new IllegalStateException("GuardLive: unknown LiveBridge call " + c.name + c.desc);

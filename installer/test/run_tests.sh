@@ -162,6 +162,7 @@ for SH in "$@"; do
 
     echo "[5] switch to card-clean"
     run switch card-clean; rc_is 0; expect_out "PMCP_SWITCH_OK variant=card-clean" "switch ok"
+    run switch card-clean; rc_is 1; expect_out "SWITCH_ALREADY_card-clean" "same map again: already, nothing done"
     [ "$(h "$U/carplaymaps/core.so")" = a4054ff9f1e7175ef9365e9f51990eb4ed3c58121ccfe4a6651e039e362552ac ] && ok "core.so card-clean" || bad "core.so after switch"
     run status; expect_out "variant card-clean" "status shows variant"
 
@@ -265,14 +266,26 @@ for SH in "$@"; do
     echo "[14] GEM menu: buttons and menu file"
     for m in "$SDB"/pmcp/menu/*.sh; do
         $SH -n "$m" 2>/dev/null || bad "syntax $(basename "$m")"
+        if [ "$(basename "$m")" = rglast.sh ]; then
+            grep -q '^/bin/ksh /net/mmx/fs/sda0/pmcp/bin/rglast.sh$' "$m" && ! grep -q 'pmcp.sh' "$m" && ok "rglast button runs bin/rglast.sh only" || bad "rglast button"
+            continue
+        fi
+        if [ "$(basename "$m")" = navdiag.sh ]; then
+            grep -q '^/bin/ksh /net/mmx/fs/sda0/pmcp/bin/navdiag.sh$' "$m" && ! grep -q 'pmcp.sh' "$m" && ok "navdiag button runs bin/navdiag.sh only" || bad "navdiag button"
+            continue
+        fi
+        if [ "$(basename "$m")" = timeline.sh ]; then
+            grep -q '^/bin/ksh /net/mmx/fs/sda0/pmcp/bin/timeline.sh$' "$m" && ! grep -q 'pmcp.sh' "$m" && ok "timeline button runs bin/timeline.sh only" || bad "timeline button"
+            continue
+        fi
         if [ "$(basename "$m")" = diag.sh ]; then
             grep -q '^/bin/ksh /net/mmx/fs/sda0/pmcp/bin/diag.sh$' "$m" && ! grep -q 'pmcp.sh' "$m" && ok "diag button runs bin/diag.sh only" || bad "diag button"
             continue
         fi
         if [ "$(basename "$m")" = all-on.sh ]; then
             acts=$(sed -n 's/^for A in \(.*\); do$/\1/p' "$m")
-            [ "$acts" = "rg-system-on_ java-on_nai java-on_np java-on_rg java-on_zoom java-on_dn" ] && grep -q '^PMCP=/net/mmx/fs/sda0/pmcp/pmcp.sh$' "$m" \
-                && ok "all-on button: RG system, then nai np rg zoom dn" || bad "all-on actions: $acts"
+            [ "$acts" = "switch_map-square-fps40 rg-system-on_ java-on_nai java-on_np java-on_zoom java-on_dn java-on_rglu" ] && grep -q '^PMCP=/net/mmx/fs/sda0/pmcp/pmcp.sh$' "$m" \
+                && ok "all-on button: main map, RG system, then nai np zoom dn rglu" || bad "all-on actions: $acts"
             continue
         fi
         args=$(sed -n 's#^/bin/ksh /net/mmx/fs/sda0/pmcp/pmcp.sh ##p' "$m")
@@ -289,10 +302,10 @@ for SH in "$@"; do
     nmenu=$(ls "$SDB"/pmcp/menu/*.sh | wc -l | tr -d ' ')
     nref=$(grep -c '/net/mmx/fs/sda0/pmcp/menu/' "$SDB/esd/Launcher-sda0.esd")
     [ "$nmenu" -gt 20 ] && [ "$nmenu" = "$nref" ] && ok "menu scripts: $nmenu, menu entries: $nref" || bad "menu scripts $nmenu vs entries $nref"
-    grep -q "install map-square" "$SDB/pmcp/menu/install-map-square.sh" && grep -q '"2. Install the CarPlay map on the AID"' "$SDB/esd/Launcher-sda0.esd" \
-        && ok "main install button is map-square" || bad "main install button"
+    grep -q "install map-square-fps40$" "$SDB/pmcp/menu/install-map-square-fps40.sh" && grep -q '"2. Install the CarPlay map on the AID"' "$SDB/esd/Launcher-sda0.esd" \
+        && ok "main install button is map-square-fps40" || bad "main install button"
     main=$(tr -d '\r' < "$SDB/esd/Launcher-sda0.esd" | sed -n '/^screen pmcp_CarPlay_AID/,/^screen pmcp_advanced/p' | grep -o 'menu/[a-z0-9-]*\.sh' | tr '\n' ' ')
-    [ "$main" = "menu/verify.sh menu/install-map-square.sh menu/all-on.sh menu/java-confirm.sh menu/java-retry.sh menu/status.sh menu/restore.sh " ] \
+    [ "$main" = "menu/verify.sh menu/install-map-square-fps40.sh menu/all-on.sh menu/java-confirm.sh menu/java-retry.sh menu/status.sh menu/restore.sh " ] \
         && ok "main screen: check, map, all features, confirm, retry, status, restore" || bad "main screen: $main"
     ORIG="$REPO/archives/mib-3.6.0/Launcher-sda0.esd"
     head -c "$(stat -f %z "$ORIG")" "$SDB/esd/Launcher-sda0.esd" | cmp -s - "$ORIG" && ok "M.I.B. menu content unchanged (only appended)" || bad "M.I.B. menu prefix changed"
@@ -300,7 +313,7 @@ for SH in "$@"; do
         [ -f "$SDB/pmcp/menu/${ref##*/}" ] || bad "menu points to missing ${ref##*/}"
     done
     v=$(sed -n 's/^PMCP_VERSION="\(.*\)"$/\1/p' "$SDB/pmcp/pmcp.sh")
-    case "$v" in pmcp-0.2.0-mu1161-791-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ok "version carries a build id: $v" ;; *) bad "version $v" ;; esac
+    case "$v" in pmcp-0.3.0-mu1161-791-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ok "version carries a build id: $v" ;; *) bad "version $v" ;; esac
     grep -q "$v" "$SDB/esd/Launcher-sda0.esd" && [ "$(head -1 "$SDB/BUILD-MANIFEST.txt")" = "$v" ] && ok "same id in GEM and BUILD-MANIFEST" || bad "version id mismatch"
 
     echo "[15] lsd.sh trial boot block, executed over simulated boots"
@@ -404,18 +417,101 @@ for SH in "$@"; do
         PMCP_TEST_ROOT="$W/unit" $SH "$W/all-on.sh" > "$W/out" 2>&1; echo $? > "$W/rc"
     }
     fresh_unit; factory=$(snapshot "$W/unit")
-    allon; rc_is 0; expect_out "PMCP_FAIL=ALL_ON_STOPPED_AT_rg-system-on_" "without the map (stage A): stops at the first step"
+    allon; rc_is 0; expect_out "PMCP_FAIL=ALL_ON_STOPPED_AT_switch_map-square-fps40" "without the map (stage A): stops at the first step"
     [ "$factory" = "$(snapshot "$W/unit")" ] && ok "without the map: unit unchanged" || bad "all-on without stage A changed the unit"
-    run install map-square; rc_is 0
+    run install map-square-fps40; rc_is 0
     allon; rc_is 0; expect_out "PMCP_ALL_ON_OK" "all features on"; expect_out "PMCP_RG_SYSTEM_ON_OK" "RG system on"
-    ALL="nai-$(jsha nai | cut -c1-8)+np-$(jsha np | cut -c1-8)+rg-$(jsha rg | cut -c1-8)+zoom-$(jsha zoom | cut -c1-8)+dn-$(jsha dn | cut -c1-8)"
+    ALL="nai-$(jsha nai | cut -c1-8)+np-$(jsha np | cut -c1-8)+zoom-$(jsha zoom | cut -c1-8)+dn-$(jsha dn | cut -c1-8)+rglu-$(jsha rglu | cut -c1-8)"
     [ "$(cut -d' ' -f1 "$U/carplaymaps/HMI_BOOT")" = "$ALL" ] && ok "one set with all five packages" || bad "set: $(cat "$U/carplaymaps/HMI_BOOT")"
     [ -e "$U/carplaymaps/rg/SYSTEM_ON" ] && ok "RG system marker" || bad "no SYSTEM_ON"
-    o=$(unit_boot); case "$o" in "boot=trial set=$ALL jars="*pmcp-dn.jar) ok "next start: one trial with all JARs" ;; *) bad "boot: $o" ;; esac
+    o=$(unit_boot); case "$o" in "boot=trial set=$ALL jars="*pmcp-rglu.jar) ok "next start: one trial with all JARs" ;; *) bad "boot: $o" ;; esac
     run java-confirm; rc_is 0; expect_out "PMCP_JAVA_CONFIRM_OK set=$ALL" "one confirm for everything"
     allon; expect_out "everything was already on, nothing changed" "second press: nothing to do"
     run restore; rc_is 0; run verify; expect_out "PMCP_VERIFY_OK state=STOCK" "remove everything: factory state"
     [ "$(h "$W/unit/mnt/system/etc/mm/iap2.cfg")" = 1539c79dd415eddeb59ea215c7a9b0ec4be3632fe066be3aefdff11bd19cdf37 ] && ok "factory iap2.cfg back" || bad "cfg after restore"
+    # update an older install (earlier card: map-square at 30 fps, rg without lanes, all confirmed) with the same button
+    run install map-square; rc_is 0; run rg-system-on; rc_is 0
+    for n in nai np rg zoom dn; do run java-on $n; rc_is 0; done
+    mkdir -p "$W/unit/mnt/persist/pmcp"; read s rest < "$U/carplaymaps/HMI_BOOT"; touch "$W/unit/mnt/persist/pmcp/ok.$s"
+    allon; rc_is 0; expect_out "PMCP_SWITCH_OK variant=map-square-fps40" "update: main map switched"
+    expect_out "PMCP_JAVA_ON_OK package=rglu" "update: lanes instead of rg"; expect_out "PMCP_ALL_ON_OK" "update done"
+    [ "$(cat "$U/carplaymaps/VARIANT")" = map-square-fps40 ] && ok "update: variant map-square-fps40" || bad "variant $(cat "$U/carplaymaps/VARIANT")"
+    UPD="nai-$(jsha nai | cut -c1-8)+np-$(jsha np | cut -c1-8)+zoom-$(jsha zoom | cut -c1-8)+dn-$(jsha dn | cut -c1-8)+rglu-$(jsha rglu | cut -c1-8)"
+    [ "$(cut -d' ' -f1 "$U/carplaymaps/HMI_BOOT")" = "$UPD" ] && ok "update: set nai np zoom dn rglu" || bad "update set: $(cat "$U/carplaymaps/HMI_BOOT")"
+    o=$(unit_boot); case "$o" in "boot=trial set=$UPD jars="*) ok "update: next start is a trial" ;; *) bad "update boot: $o" ;; esac
+    run restore; rc_is 0
+
+    echo "[20] start timeline button (fake pidin/sloginfo; real script, host awk)"
+    mkdir -p "$W/tl/bin"
+    cat > "$W/tl/bin/pidin" <<'PEOF'
+#!/bin/sh
+case "$1" in
+info) echo "CPU:ARM Release:6.5.0  FreeMem:200MB/1024MB BootTime:Oct 29 07:59:58 2026" ;;
+times) echo "     pid name                       start time        utime        stime"
+  if [ -n "$TL_NOSEC" ]; then echo "       1 procnto                    Oct 29 07:59   1s 2s"; echo "  401433 dio_manager                Oct 29 08:00   1s 2s"
+  else echo "       1 procnto                    Oct 29 07:59:58      1s     2s"
+       echo "   12300 smartphone_integrator      Oct 29 08:00:11      1s     2s"
+       echo "  401433 dio_manager                Oct 29 08:00:23      1s     2s"
+       echo "  401990 carplay-cluster-supervisor Oct 29 08:00:24      1s     2s"
+       echo "  455000 navigation                 Oct 29 08:00:57      1s     2s"
+       echo "  455111 unrelated-proc             Oct 29 08:01:00      1s     2s"; fi ;;
+esac
+PEOF
+    printf '#!/bin/sh\necho "Oct 29 08:01:02  5 14 0 navi: map ready"\n' > "$W/tl/bin/sloginfo"
+    chmod 755 "$W/tl/bin/pidin" "$W/tl/bin/sloginfo"
+    sed -e "s#^export PATH=.*#export PATH=$W/tl/bin:/bin:/usr/bin#" -e "s#^AWK=.*#AWK=$PMCP_TEST_GAWK#" "$SDB/pmcp/bin/timeline.sh" > "$W/tl/t.sh"
+    $SH "$W/tl/t.sh" > "$W/out" 2>&1
+    mkdir -p "$W/tl/rd"
+    echo "t_us=21437000 event=oem-most-release value1=0 value2=0" > "$W/tl/rd/carplay-cluster-supervisor.log"
+    echo "launch=carplay-maps-video-only" > "$W/tl/rd/carplaymaps-launcher.log"
+    PMCP_RAMDISK="$W/tl/rd" $SH "$W/tl/t.sh" > "$W/out" 2>&1
+    expect_out "PMCP_TIMELINE_DONE" "timeline runs to the end"
+    expect_out "^   21.4  event=oem-most-release" "supervisor event in seconds since unit start"
+    expect_out "launch=carplay-maps-video-only" "launcher log shown"
+    expect_out "^   25  401433 dio_manager" "dio_manager at +25 s"
+    expect_out "^   59  455000 navigation" "navigation at +59 s"
+    grep -q unrelated "$W/out" && bad "unrelated process listed" || ok "only the relevant processes"
+    expect_out "navi: map ready" "system log line"
+    TL_NOSEC=1 $SH "$W/tl/t.sh" > "$W/out" 2>&1
+    expect_out "no start time with seconds; raw lines" "no seconds: raw lines instead of wrong numbers"
+
+    echo "[21] RG last maneuver button (synthetic mailbox: route, U-turn without junction, right turn, U-turn by angle, lanes)"
+    mkdir -p "$W/rgm"
+    echo "52474d31010000005f0100000900000001000000000000000000000000000000524749310100000040810000000000000700000005000000050000000000000000000000000000000000000000000000000000000000000000000000000000000100000001521300070000000000000000060000000100050001010008000d000300040200000002522300070000000000000000060000000100060001000300050003040005000800000d000447c582c3b3776e6100030000000252210007000000000000000006000000010006000100040005000302000500080000050009000006000b005a0400000002521c000700000000000000000600000001000600010005000500030400050009000006000bff560500000004523c000700000000000000000600000001000600010005001500020006000000000005000100000600020000001b0002000600000001000500010200060002ff4c00060003ff4c" | xxd -r -p > "$W/rgm/latest.bin"
+    echo "RG status=live polls=1" > "$W/rgm/status.txt"
+    sed -e "s#^AWK=.*#AWK=$PMCP_TEST_GAWK#" "$SDB/pmcp/bin/rglast.sh" > "$W/rgm/t.sh"
+    PMCP_RG_MAILBOX="$W/rgm" $SH "$W/rgm/t.sh" > "$W/out" 2>&1
+    expect_out "PMCP_RGLAST_DONE" "rglast runs to the end"
+    expect_out "route state=1 next maneuver idx=3" "route message: state and next maneuver"
+    expect_out "idx=3 type=4 side=0 junction=- angle=- -> arrow 0 0 (junction missing" "U-turn without junction: no arrow (shown why)"
+    expect_out "idx=4 type=2 side=0 junction=0 angle=90 -> arrow 13 turn" "right turn: arrow"
+    expect_out "idx=5 type=4 side=- junction=0 angle=-170 -> arrow 25 64" "U-turn by signed angle"
+    expect_out "lanes idx=5 \[pos=0 st=0 a=0/0|0\] \[pos=1 st=2 a=-180/128|114 hl=-180/128|114\]" "lanes: positions, status, angle -> direction byte"
+    PMCP_RG_MAILBOX="$W/none" $SH "$W/rgm/t.sh" > "$W/out" 2>&1
+    expect_out "no $W/none/latest.bin" "no mailbox: says so"
+
+    echo "[19] lanes: rglu replaces rg (same classes), trial, back to rg, RG system guard; removed packages refused"
+    RGLU=$(jid rglu)
+    fresh_unit; run install map-square-fps40; rc_is 0
+    run java-on rglu; rc_is 1; expect_out "JAVA_RG_NEEDS_RG_SYSTEM_ON" "lanes need the RG system"
+    run rg-system-on; rc_is 0; run java-on nai; rc_is 0; run java-on rg; rc_is 0
+    mkdir -p "$W/unit/mnt/persist/pmcp"; read s rest < "$U/carplaymaps/HMI_BOOT"; touch "$W/unit/mnt/persist/pmcp/ok.$s"
+    run java-on rglu; rc_is 0; expect_out "rg replaced by rglu" "rglu swaps rg out"
+    [ "$(cat "$U/carplaymaps/HMI_BOOT")" = "$NAI+$RGLU NavActiveIgnore.jar pmcp-rglu.jar" ] && ok "set: nai + rglu" || bad "set $(cat "$U/carplaymaps/HMI_BOOT")"
+    [ ! -e "$U/eso/hmi/lsd/jars/pmcp-rg.jar" ] && [ "$(h "$U/eso/hmi/lsd/jars/pmcp-rglu.jar")" = "$(jsha rglu)" ] && ok "pmcp-rg.jar removed, pmcp-rglu.jar in place" || bad "JARs after swap"
+    o=$(unit_boot); [ "$o" = "boot=trial set=$NAI+$RGLU jars=/X/lsd/jars/NavActiveIgnore.jar:/X/lsd/jars/pmcp-rglu.jar" ] && ok "lanes: new trial boot" || bad "boot: $o"
+    run status; expect_out "Unit state: JAVA" "state JAVA with rglu"
+    run rg-system-off; rc_is 1; expect_out "TURN_OFF_JAVA_PACKAGE_RG_FIRST" "RG system stays while rglu is on"
+    run java-on rglu; rc_is 1; expect_out "JAVA_PACKAGE_ALREADY_ON_rglu" "second rglu refused"
+    run java-on rg; rc_is 0; expect_out "rglu replaced by rg" "back to rg"
+    [ "$(cat "$U/carplaymaps/HMI_BOOT")" = "$NAI+$RG NavActiveIgnore.jar pmcp-rg.jar" ] && ok "set: nai + rg again" || bad "set $(cat "$U/carplaymaps/HMI_BOOT")"
+    o=$(unit_boot); [ "$o" = "boot=yes set=$NAI+$RG jars=/X/lsd/jars/NavActiveIgnore.jar:/X/lsd/jars/pmcp-rg.jar" ] && ok "earlier confirmed rg set loads at once" || bad "boot: $o"
+    for gone in rgl dn2 kf kf4; do
+        run java-on $gone; rc_is 1; expect_out "UNKNOWN_JAVA_PACKAGE_$gone" "$gone not shipped"
+    done
+    run java-off rg; rc_is 0; run rg-system-off; rc_is 0
+    run restore; rc_is 0; run verify; expect_out "PMCP_VERIFY_OK state=STOCK" "restore after lanes: factory"
+
 done
 
 rm -rf "$W"

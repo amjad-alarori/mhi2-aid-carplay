@@ -176,6 +176,11 @@ java_catalog() {
     done
 }
 
+# java_alternative NAME -> the packages that replace the same classes (never in one set with NAME), or nothing
+java_alternative() {
+    case "$1" in rg) echo rglu ;; rglu) echo rg ;; esac
+}
+
 java_jarfile() {
     java_catalog | while read _w_n _w_f; do [ "$_w_n" = "$1" ] && echo "$_w_f"; done
 }
@@ -536,6 +541,10 @@ do_switch() {
     case "$STATE" in VIDEO|JAVA) ;; *) fail "SWITCH_NEEDS_PMCP_INSTALL_STATE_$STATE" ;; esac
     set -- `manifest_get "$key"`; C_SHA=$1; C_SIZE=$2; C_PATH=$3
     check "$PAYLOAD/$C_PATH" "$C_SHA" "$C_SIZE" "$key"
+    # same map already active: nothing to do (button 3 switches to the main map as its first step)
+    if [ "`cat "$ROOT/VARIANT" 2>/dev/null`" = "$ARG" ] && matches "$ROOT/core.so" "$C_SHA" "$C_SIZE"; then
+        fail "SWITCH_ALREADY_$ARG"
+    fi
     remount_rw
     stop_runtime
     cp "$PAYLOAD/$C_PATH" "$ROOT/core.so.pmcp-new" || fail "CORE_STAGE_FAILED"
@@ -576,10 +585,16 @@ do_java_on() {
     cur=`current_set`
     [ "$STATE" = VIDEO ] && cur=""
     case " $cur " in *" $ARG "*) fail "JAVA_PACKAGE_ALREADY_ON_$ARG" ;; esac
-    [ "$ARG" != rg ] || [ "$RGSYS" = on ] || fail "JAVA_RG_NEEDS_RG_SYSTEM_ON"
+    case "$ARG" in rg|rglu) [ "$RGSYS" = on ] || fail "JAVA_RG_NEEDS_RG_SYSTEM_ON" ;; esac
+    # the alternative package (same classes) leaves the set; its JAR is removed after the new set is active
+    ALT=""; ALTFILE=""
+    for _a in `java_alternative "$ARG"`; do
+        case " $cur " in *" $_a "*) ALT=$_a; ALTFILE=`java_jarfile "$_a"` ;; esac
+    done
     # new set in catalog order, so the same packages always give the same set id
     new=""
     for n in `java_catalog | while read a b; do echo $a; done`; do
+        [ -n "$ALT" ] && [ "$n" = "$ALT" ] && continue
         case " $cur $ARG " in *" $n "*) new="$new${new:+ }$n" ;; esac
     done
     set -- `manifest_get "JAR_$ARG"`; J_SHA=$1; J_SIZE=$2; J_PATH=$3
@@ -603,6 +618,10 @@ do_java_on() {
     commit_set_files || fail "SET_ACTIVATION_FAILED_RUN_RESTORE"
     if [ "$STATE" = VIDEO ]; then
         mv "$LSD.pmcp-new" "$LSD" || fail "LSD_ACTIVATION_FAILED_RUN_RESTORE"
+    fi
+    if [ -n "$ALTFILE" ]; then
+        rm -f "$JARS/$ALTFILE" || fail "ALTERNATIVE_JAR_REMOVE_FAILED_RUN_RESTORE"
+        say "  $ALT replaced by $ARG"
     fi
     rm -f "$PERSIST/DISABLED" 2>/dev/null
     detect_state
@@ -745,7 +764,7 @@ do_rg_system_off() {
     firmware_identity
     detect_state
     case "$STATE" in VIDEO|JAVA|PARTIAL) ;; *) fail "RG_SYSTEM_OFF_NEEDS_PMCP_STATE_$STATE" ;; esac
-    case " `current_set` " in *" rg "*) [ "$STATE" = JAVA ] && fail "TURN_OFF_JAVA_PACKAGE_RG_FIRST" ;; esac
+    case " `current_set` " in *" rg "*|*" rglu "*) [ "$STATE" = JAVA ] && fail "TURN_OFF_JAVA_PACKAGE_RG_FIRST" ;; esac
     remount_rw
     rg_files_off
     rg_state

@@ -55,7 +55,7 @@ def main():
     # 1. the installer build: exactly the files of its BUILD-MANIFEST.txt, nothing more, nothing less
     man = (sdb / "BUILD-MANIFEST.txt").read_text().splitlines()
     ver, entries = man[0], [l.split() for l in man[1:] if l.strip()]
-    if not ver.startswith("pmcp-0.2.0-mu1161-791-"):
+    if not ver.startswith("pmcp-0.3.0-mu1161-791-"):
         sys.exit("unexpected build version: %s" % ver)
     listed = set()
     for h, size, rel in entries:

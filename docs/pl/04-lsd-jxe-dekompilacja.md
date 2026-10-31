@@ -248,7 +248,7 @@ Funkcje BAP NavSD (`bap/mqbab2/navsd/functions/*`) czytają `NavigationService` 
 
 ### (b) Natywne wstrzyknięcie prowadzenia (TBT do widgetów BAP NavSD)
 
-Stan: ta droga jest zrealizowana w paczce E „System RG” i JAR-ze [`rg/`](../../rg/) (port rozwiązania tomasz-twardzicki) i działa w aucie: natywna strzałka, dystans i czas do celu na AID.
+Stan: ta droga jest zrealizowana w paczce E „System RG” i JAR-ze [`rg/`](../../rg/README.pl.md) (port rozwiązania tomasz-twardzicki) i działa w aucie: natywna strzałka, dystans i czas do celu na AID.
 
 1. Źródło danych: CarPlay RGI z iAP2 (natywnie `ipod-drvr-iap2` / `mm-ipod`, jak u maxima i harman-f), bo `DSICarPlay` go nie dostarcza.
 2. Wstrzyknięcie w Javie (w kontekście wątku ASL, np. przez `ThreadSwitchingService`):
@@ -256,7 +256,7 @@ Stan: ta droga jest zrealizowana w paczce E „System RG” i JAR-ze [`rg/`](../
    - `ListManager.getGenericASLList(751).updateList(...)` (manewr);
    - `ASLNavBAPFactory.getNavBAPApi().updateBapDistanceToNextManeuver(...)`, `.updateBapTurnToInfo(street, sign)`, `.updateBapLaneGuidance(...)`, `.updateBapDistanceToDestination(...)`, `.updateBapTimeToDestinationRTTandETA(...)`.
 3. Konflikty do obejścia:
-   - `CarPlayModeHandling` przy nawigacji iPhone’a woła `navServices.stopGuidance(6)` i ustawia `2910009 = true`, przez co `InfoStates` zmienia się na 6. AID może wtedy pokazać ekran „nawigacja w urządzeniu” zamiast strzałek. Potrzebny patch `InfoStates#getCurrentBAPInfoState` albo `ASLCarplayServicesImpl#isCarPlayRouteGuidanceActive`. W praktyce rozwiązuje to [NavActiveIgnore](../../navactiveignore/): gdy prowadzi CarPlay, `CarPlayModeHandling` nie ustawia `2910009`, nie woła `setActiveNavigation(2)` ani `stopGuidance(6)`.
+   - `CarPlayModeHandling` przy nawigacji iPhone’a woła `navServices.stopGuidance(6)` i ustawia `2910009 = true`, przez co `InfoStates` zmienia się na 6. AID może wtedy pokazać ekran „nawigacja w urządzeniu” zamiast strzałek. Potrzebny patch `InfoStates#getCurrentBAPInfoState` albo `ASLCarplayServicesImpl#isCarPlayRouteGuidanceActive`. W praktyce rozwiązuje to [NavActiveIgnore](../../navactiveignore/README.pl.md): gdy prowadzi CarPlay, `CarPlayModeHandling` nie ustawia `2910009`, nie woła `setActiveNavigation(2)` ani `stopGuidance(6)`.
    - `HsmTargetBap` (event `3497006`) i native DSI navigation nadpisują 732, 751, 741 i 744, gdy natywna nawigacja coś raportuje. Trzeba je wyciszyć lub gatingować flagą.
    - Natywnie `RGStatus` wymaga `733 == 0` (nawigacja OK).
 4. Alternatywa niskiego ryzyka: wypełnić puste stuby `AndroidAutoTarget#dsiAndroidAuto2UpdateNavigationNextTurnEvent` i analogicznie dla CarPlay. Wymaga własnego źródła DSI.

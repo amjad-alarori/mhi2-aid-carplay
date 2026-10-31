@@ -417,6 +417,7 @@ run_long "NavActiveIgnore.jar" bash "$PROJ/navactiveignore/build.sh" MU1161 "$LS
 run_long "pmcp-np.jar (track title and artist)" bash "$PROJ/nowplaying/build.sh" "$LSD_JAR" "$BUILD/np-mu1161-v2"
 run_long "pmcp-zoom.jar and pmcp-dn.jar (zoom, day/night)" bash "$PROJ/hmiextras/build.sh" "$LSD_JAR" "$BUILD/extras-mu1161-v2"
 run_long "route guidance (pmcp-rg.jar, iAP2 driver, iap2.cfg, reader)" bash "$PROJ/rg/build.sh" "$LSD_JAR" "$BUILD/rg-mu1161"
+run_long "route guidance with lanes and U-turn lanes (pmcp-rglu.jar)" bash "$PROJ/rg/build.sh" "$LSD_JAR" "$BUILD/rg-mu1161-lanes-uturn" lanes-uturn
 mkdir -p "$BUILD/rg-mu1161-v2"
 cp "$BUILD/rg-mu1161/pmcp-rg.jar" "$BUILD/rg-mu1161-v2/pmcp-rg.jar"
 ok "all components built"

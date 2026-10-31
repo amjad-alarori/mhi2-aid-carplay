@@ -2,7 +2,7 @@
 
 Status: **tested in the car (October 2026).** Code: [`installer/`](../../installer/).
 The SD build is made by `installer/build_sd.py` (the output directory holds `BUILD-MANIFEST.txt` with the hash of every file;
-the version shown in GEM is `pmcp-0.2.0-mu1161-791-<build id>`, where the id is the first 8 hex digits of the SHA-256 of the
+the version shown in GEM is `pmcp-0.3.0-mu1161-791-<build id>`, where the id is the first 8 hex digits of the SHA-256 of the
 manifest and the `pmcp.sh` template). The install card is assembled by `installer/build_card_install.py`, the rescue card by
 `installer/build_rescue.py`.
 
@@ -66,7 +66,8 @@ Safe area = x / y / width / height on the 800×480 stream:
 | `card-clean` | `maps:/car/instrumentcluster` | 200 / 108 / 400 / 296 | with the iPhone's manoeuvre card |
 | `url-map-hybrid` | `…/map?showSpeedLimit=yes` | 200 / 108 / 400 / 296 | speed-limit parameter (no visible effect) |
 | `map-clean-l40` | `maps:/car/instrumentcluster/map` | 160 / 108 / 400 / 296 | shifted 40 columns to the left |
-| **`map-square`** | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | **default (main button), chosen after a longer drive.** mathsls's MU1161 layout, closer to square |
+| `map-square` | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | mathsls's MU1161 layout, closer to square, 30 fps (default until v1.2.0) |
+| **`map-square-fps40`** | `maps:/car/instrumentcluster/map` | 240 / 60 / 320 / 340 | **default (main button) since v1.3.0**: `map-square` at 40 fps (the base core's value, as mathsls), no more lag than 30 fps in a test drive; an IDR every 10 frames gave artefacts |
 
 ## Fail-closed gates (what must match before anything is written)
 
@@ -125,10 +126,11 @@ file on the card. Nothing changes on the unit. The base file is exactly `esd/Lau
    Check the version in the header of the pmcp screen in GEM: it must match the first line of `BUILD-MANIFEST.txt`.
 2. In the car: GEM → `=>M.I.B.<=` → **`pmcp_CarPlay_AID`**. Main screen (English):
    - "1. Check card and unit (read-only)" → `verify`;
-   - "2. Install the CarPlay map on the AID" → `install map-square` (stage A);
-   - "3. Install all features: arrows, ETA, zoom, song title" → menu script `all-on.sh`: `rg-system-on`, then
-     `java-on` nai, np, rg, zoom, dn, one after another (one set, one trial boot); stops at the first `PMCP_FAIL`,
-     `*_ALREADY_*` counts as done;
+   - "2. Install the CarPlay map on the AID" → `install map-square-fps40` (stage A);
+   - "3. Install all features or update: …" → menu script `all-on.sh`: `switch map-square-fps40`, `rg-system-on`, then
+     `java-on` nai, np, zoom, dn, rglu, one after another (one set, one trial boot); stops at the first `PMCP_FAIL`,
+     `*_ALREADY_*` counts as done (`switch` to the map already active answers `SWITCH_ALREADY_<variant>`), so the same
+     button brings any earlier install to this card's set; `java-on rglu` replaces `rg` (same classes, `java_alternative`);
    - "4. Confirm: everything works (only in the first start after 3)" → `java-confirm`;
    - "5. Try again: the next start is a new trial" → `java-retry`;
    - "Status (read-only)", "Remove everything (back to factory files)" → `restore`;
@@ -173,7 +175,7 @@ QNX) and `ksh` (ksh93). The exit status is the number of failed checks. They cov
 - rescue card: a healthy unit is unchanged; a `JAVA` unit → stock `lsd.sh`, JARs removed, `DISABLED`; a unit with System RG →
   stock driver and `iap2.cfg`, `SYSTEM_ON` and `last-boot` removed; no backup copy or no `lsd.sh` → an honest `WYNIK=NIEPEWNY`
   (result uncertain);
-- GEM menu: number of scripts = number of menu entries, syntax, allowed actions, main button = `map-square`, the version with build
+- GEM menu: number of scripts = number of menu entries, syntax, allowed actions, main button = `map-square-fps40`, the version with build
   id identical in `pmcp.sh`, the menu and `BUILD-MANIFEST`.
 
 `installer/test/fault_inject.sh SD_BUILD mksh`: the power-loss test (above).

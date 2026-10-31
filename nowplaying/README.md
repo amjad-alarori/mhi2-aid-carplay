@@ -1,50 +1,52 @@
-# Paczka D: tytuł i wykonawca utworu CarPlay na AID
+# Package D: CarPlay track title and artist on the AID
 
-Stan: **działa w aucie (MU1161 + AID 791, październik 2026).** JAR: `build/np-mu1161-v2/pmcp-np.jar` (17,928 B, `6b638868…dc23`;
-v2 2026-10-22: wszystkie 4 wywołania helpera osłonięte `buildtools/Guard.java`, kontrola API J9 `RefCheck`;
+[Polska wersja: README.pl.md](README.pl.md)
+
+Status: **works in the car (MU1161 + AID 791, October 2026).** JAR: `build/np-mu1161-v2/pmcp-np.jar` (17,928 B, `6b638868…dc23`;
+v2 2026-10-22: all 4 helper calls guarded by `buildtools/Guard.java`, J9 API check `RefCheck`;
 v1 `1af4d5e8…761b`).
 
-## Dlaczego fabrycznie jest tylko „Apple CarPlay”
+## Why the factory code shows only "Apple CarPlay"
 
-- Cel ASL CarPlay (`HsmTarget`) subskrybuje atrybuty DSI `{8,7,8,2,9,12}`, **bez 3** (`ATTR_NOWPLAYINGDATA`).
-  HMI w ogóle nie dostaje tytułu, choć iPhone go wysyła (iAP2 NowPlaying działa fabrycznie).
-- BAP AudioSD `CurrentStationInfo.setStationInfoForMirrorLink()` wysyła do licznika tylko `primaryInformation = "Apple CarPlay"`.
+- The CarPlay ASL target (`HsmTarget`) subscribes to DSI attributes `{8,7,8,2,9,12}`, **without 3** (`ATTR_NOWPLAYINGDATA`).
+  The HMI never gets the title at all, although the iPhone sends it (iAP2 NowPlaying works in the factory code).
+- BAP AudioSD `CurrentStationInfo.setStationInfoForMirrorLink()` sends only `primaryInformation = "Apple CarPlay"` to the cluster.
 
-## Jak to działa
+## How it works
 
-Trzy hooki ASM w klasach fabrycznych MU1161 (`patcher/PatchNp.java`, każdy z asercją wzorca i liczby trafień):
+Three ASM hooks in the factory MU1161 classes (`patcher/PatchNp.java`, each with an assertion on the pattern and the number of matches):
 
-| Klasa.metoda | Hook |
+| Class.method | Hook |
 |---|---|
-| `HsmTarget.initializeDSI` | po fabrycznym `dsiCarplay.setNotification(...)`: `NowPlaying.attach(dsiCarplay)` rejestruje **własnego** słuchacza na atrybut 3 |
+| `HsmTarget.initializeDSI` | after the factory `dsiCarplay.setNotification(...)`: `NowPlaying.attach(dsiCarplay)` registers **its own** listener for attribute 3 |
 | `CurrentStationInfo.init` / `uninitialize` | `NowPlaying.register(this)` / `unregister(this)` |
-| `CurrentStationInfo.setStationInfoForMirrorLink` | na wejściu: przy CarPlay (typ połączenia 2) i znanym tytule wpisuje tytuł (typ 72), wykonawcę (73), album (74) i kończy; inaczej kod fabryczny |
+| `CurrentStationInfo.setStationInfoForMirrorLink` | at entry: with CarPlay (connection type 2) and a known title it fills in the title (type 72), artist (73), album (74) and returns; otherwise the factory code runs |
 
-Sprawdzone w źródłach:
-- **Refleksja celów ASL jest generowana przy budowie firmware'u** (`ModuleReflectionFactory`), więc nie dopisujemy metody do `HsmTarget`.
-  Zamiast tego zwykła klasa implementuje `DSICarplayListener`; rozsyłanie DSI rzutuje słuchacza na interfejs i woła metodę bezpośrednio.
-- `DSIProxyTarget` trzyma maskę atrybutów **osobno dla każdego słuchacza**, więc nasz słuchacz nie zmienia tego, co dostaje HMI.
-  Nowy słuchacz od razu dostaje bieżącą wartość z pamięci podręcznej (`NotificationDatapool.getAvailable`).
-- Zmiana utworu trafia do wątku BAP przez fabryczny `ThreadSwitchingService.enqueue(Runnable)` (jak w `ASLDataPoolAdapter`),
-  który wywołuje `CurrentStationInfo.process(-1)`.
-- Typy pól 72/73/74 jak w fabrycznym `setStationInfoForMediaExternalDevice` / `setArtistAndAlbum`.
+Checked in the sources:
+- **The reflection of ASL targets is generated when the firmware is built** (`ModuleReflectionFactory`), so we do not add a method to `HsmTarget`.
+  Instead, a plain class implements `DSICarplayListener`; the DSI dispatch casts the listener to the interface and calls the method directly.
+- `DSIProxyTarget` keeps the attribute mask **separately for each listener**, so our listener does not change what the HMI gets.
+  A new listener gets the current value from the cache right away (`NotificationDatapool.getAvailable`).
+- A track change reaches the BAP thread through the factory `ThreadSwitchingService.enqueue(Runnable)` (as in `ASLDataPoolAdapter`),
+  which calls `CurrentStationInfo.process(-1)`.
+- Field types 72/73/74 as in the factory `setStationInfoForMediaExternalDevice` / `setArtistAndAlbum`.
 
-Każdy hook łapie własne wyjątki: błąd tutaj zostawia fabryczne „Apple CarPlay”, nie psuje CarPlay ani licznika.
-Tytuł jest przycinany do 80 znaków. AA i MirrorLink zostają fabryczne.
+Every hook catches its own exceptions: an error here leaves the factory "Apple CarPlay" and does not break CarPlay or the cluster.
+The title is cut to 80 characters. AA and MirrorLink stay factory.
 
-## Budowanie
+## Building
 
 ```sh
 ASM_DIR=upstream/tools/jxe2jar/repo/tools/uninline/lib \
   nowplaying/build.sh archives/x-mu1161/jar/lsd-mu1161.jar build/np-mu1161
 ```
 
-Wynik: weryfikator ASM OK, klasy w wersji 46 (stockowe `HsmTarget` i `CurrentStationInfo` z konwertera mają 49; patcher obniża
-je dopiero po sprawdzeniu braku literałów klas), stałe w obu klasach identyczne ze stockiem, test hosta 13/13 (`test/TestNp.java`).
+Result: ASM verifier OK, classes at version 46 (the stock `HsmTarget` and `CurrentStationInfo` from the converter are 49; the patcher lowers
+them only after checking that there are no class literals), the constants in both classes identical to stock, host test 13/13 (`test/TestNp.java`).
 
-## Czego nie wiemy przed autem
+## What we do not know before the car
 
-- czy licznik pokazuje drugą i trzecią linię dla źródła „smartfon” (dla multimediów pokazuje);
-- czy `ThreadSwitchingService` jest gotowy w chwili pierwszej zmiany utworu (jeśli nie, pokaże się przy następnej aktualizacji).
+- whether the cluster shows the second and third line for the "smartphone" source (it does for media);
+- whether `ThreadSwitchingService` is ready at the moment of the first track change (if not, the title shows at the next update).
 
-W instalatorze: paczka Java `np` (GEM → pmcp → etap B → „Wlacz: Tytul i wykonawca”).
+In the installer: Java package `np` (GEM → pmcp → stage B → "Wlacz: Tytul i wykonawca").

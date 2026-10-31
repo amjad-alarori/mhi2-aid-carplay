@@ -1,6 +1,7 @@
 CarPlay map on the Active Info Display (virtual cockpit)
 VW Passat B8 / MQB with Discover Pro MHI2 - ready-made SD cards
 Build: @@VERSION@@
+Polska wersja: README-FIRST.pl.txt
 ==========================================================================================
 
 WHAT THIS DOES
@@ -80,7 +81,9 @@ PART 2 - IN THE CAR
     "Forget This Car", then connect again. Still nothing: do not go on to step 3.
 
   Step 3. Install the rest (only if the map works)
-    Green menu -> pmcp_CarPlay_AID -> "3. Install all features: arrows, ETA, zoom, song title".
+    Green menu -> pmcp_CarPlay_AID -> "3. Install all features or update: main map, arrows, lanes, ...".
+    (Already have an earlier version installed? Only this step and step 4 are needed: the button
+    skips what is already done and brings the rest up to date.)
     Expected:  PMCP_ALL_ON_OK
     Restart (volume knob 10 s). This start is a TRIAL.
 

@@ -105,6 +105,15 @@ VARIANTS = {
     # mathsls's MU1161/791 layout (area 240/60/320/340, 240x144 mm, mathsls commit 0bd8e31) with the clean map URL: narrower and
     # taller (closer to square) than map-clean, centred on column 400 (user, 2026-10-24).
     "map-square":           dict(max_fps=30, keyframe=5, url="map",              area=(240, 60, 320, 340), phys=(240, 144)),
+    # Latency A/B on map-square (map ~1 s behind the head unit, user 2026-10-25). The 791 decoder is the bottleneck
+    # (omonob#10: Tomasz's 40 -> 30 fps removed lag; forced IDRs are 13-76 KB against ~1.4 KB P-frames).
+    # fps20: fewer frames for the decoder (KelvinPH tested 20 fps on MU1367/791); kf10: half the forced IDRs;
+    # fps40: the base core's own value, kept on purpose by omonob (v1.2.0) and mathsls (same car: B8 MU1161/791, "no lag").
+    "map-square-fps40":     dict(max_fps=40, keyframe=5, url="map",              area=(240, 60, 320, 340), phys=(240, 144)),
+    # fps40-kf10: 40 fps declared with half the forced IDRs (user's question: lighter than 30 fps + IDR every 5?).
+    "map-square-fps40-kf10": dict(max_fps=40, keyframe=10, url="map",            area=(240, 60, 320, 340), phys=(240, 144)),
+    "map-square-fps20":     dict(max_fps=20, keyframe=5, url="map",              area=(240, 60, 320, 340), phys=(240, 144)),
+    "map-square-kf10":      dict(max_fps=30, keyframe=10, url="map",             area=(240, 60, 320, 340), phys=(240, 144)),
 }
 
 
