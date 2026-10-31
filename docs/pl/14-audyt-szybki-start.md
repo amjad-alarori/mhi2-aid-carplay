@@ -92,6 +92,29 @@ Confirm następny start jest znowu fabryczny. Żadna nie została zatwierdzona.
     „Instrument Cluster”.
 
   Telefon przyjmował każdą komendę (status 0), ale Google Maps na AID zostawały ciemne. Apple Maps przełączają się
-  poprawnie drogą fabryczną. Odbiornik AirPlay w radiu zna tylko `nightMode`, nie ustawienie „wyglądu”, którego
-  najwyraźniej używa Google Maps. Temat zaparkowany.
+  poprawnie drogą fabryczną. Temat zaparkowany. Co wiemy i jak to rozumiemy:
+  - **Co wysyła radio.** Jedną wartość dla całej sesji CarPlay: `nightMode` (noc albo dzień). Radio wysyła ją przy
+    połączeniu telefonu i przy każdej zmianie (np. po zapaleniu albo zgaszeniu świateł). Nie wysyła kolorów, motywów ani
+    niczego dla konkretnej aplikacji. Telefon odpowiada na każdą komendę statusem 0. To znaczy tylko, że iOS przyjął
+    wiadomość, a nie że każda aplikacja zmieniła wygląd.
+  - **Oba obrazy rysuje telefon.** Ekran środkowy i mapa licznika przychodzą do radia jako gotowe wideo H.264. Radio nie
+    może ich przemalować ani powiedzieć telefonowi „narysuj licznik jak ekran środkowy”.
+  - **Co robią Google Maps (i Waze).** Ekran środkowy stosuje wartość poprawnie. Mapa licznika startuje ciemna. Prawdziwa
+    zmiana (przełączenie świateł albo przełączenie aplikacji na iPhonie) rozjaśnia ją, ale tylko na chwilę; potem sama
+    wraca do ciemnej. Ponowne wysłanie tej samej wartości nic nie daje; iOS albo aplikacja traktuje je jako „bez zmian”.
+  - **Prawdopodobna przyczyna: stary odbiornik z doklejonym drugim ekranem.** Fabryczne MHI2 nigdy nie pokazywało CarPlay
+    na liczniku; Apple dodało mapę licznika w iOS 13 (2019). Drugi ekran dokłada `core.so` (omonob) w `dio_manager`.
+    Telefon widzi więc hybrydę: odbiornik AirPlay z ok. 2016 r., który zna tylko jeden globalny `nightMode`, plus doklejony
+    ekran licznika. Radia z fabryczną mapą na liczniku prawdopodobnie przekazują więcej informacji o każdym ekranie, w tym
+    jego styl jasny/ciemny. Apple Maps przy braku tej informacji wracają do `nightMode`; Google Maps najwyraźniej zostają
+    przy domyślnym ciemnym stylu i nie pamiętają bieżącej wartości, gdy rysują widok licznika od nowa. To wniosek
+    z zachowania, nie z kodu Google'a.
+  - **Naprawa należy więc do Google'a.** Radio wysyła poprawną informację, a telefon ją potwierdza. To raczej przypadek,
+    którego Google nie testował (radio z 2016 r. z dorobionym licznikiem), niż błąd w zwykłym sensie.
+  - **Jedyne obejście po naszej stronie** to sztuczne „przełączenie świateł”: `dn` wysyła noc, a po ok. 1 s znowu
+    prawdziwą wartość. Trzymałoby się tylko do ponownego ściemnienia przez Google Maps, radio nie widzi, kiedy ono
+    następuje, a każde przełączenie może mignąć na środkowym ekranie i w Apple Maps. Niezbudowane. Ma sens tylko wtedy,
+    gdy okaże się, że ciemną mapę przywraca konkretne zdarzenie (manewr, zoom, zmiana widoku licznika).
+  - Większy lag Google Maps i Waze na AID oraz brak efektu `showSpeedLimit` mogą mieć tę samą przyczynę (telefon dostaje
+    o ekranie licznika mniej informacji, niż oczekuje). Na to nie ma dowodu.
 - **Pasy bez zawracania** (`rgl`): zastąpione przez `rglu` (pasy ze strzałkami zawracania), które jest w v1.3.0.

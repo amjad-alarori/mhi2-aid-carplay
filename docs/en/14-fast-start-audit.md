@@ -92,6 +92,29 @@ Confirm the next start is factory again. None of them was confirmed.
     "Instrument Cluster".
 
   The phone accepted every command (status 0), but Google Maps on the AID stayed dark. Apple Maps switches correctly with
-  the factory path. The head unit's AirPlay receiver knows only `nightMode`, not the "appearance" setting that Google
-  Maps seems to use. Parked.
+  the factory path. Parked. What we know, and what we think it means:
+  - **What the head unit sends.** One value for the whole CarPlay session: `nightMode` (night or day). The unit sends it
+    when the phone connects and whenever it changes (for example when the headlights go on or off). It sends no colours or
+    themes and nothing per app. The phone answers each command with status 0. That only means iOS took the message, not
+    that each app changed its look.
+  - **Both pictures are drawn by the phone.** The centre screen and the cluster map arrive at the head unit as finished
+    H.264 video. The unit cannot recolour them or tell the phone "draw the cluster like the centre screen".
+  - **What Google Maps (and Waze) do.** The centre screen follows the value correctly. The cluster map starts dark. A real
+    change (switching the headlights, or switching apps on the iPhone) makes it light, but only for a while; then it goes
+    dark again by itself. Re-sending the same value does nothing; iOS or the app treats it as "no change".
+  - **Likely cause: an old receiver with an added second screen.** The factory MHI2 never showed CarPlay on the cluster;
+    Apple added the cluster map in iOS 13 (2019). The second screen is added by `core.so` (omonob) inside `dio_manager`.
+    The phone therefore sees a hybrid: an AirPlay receiver from about 2016 that knows only one global `nightMode`, with an
+    added cluster display. Head units with a factory cluster map probably pass more information per screen, including its
+    light or dark style. Apple Maps falls back to `nightMode` when that is missing; Google Maps apparently keeps its dark
+    default and does not remember the current value when it redraws the cluster view. This is a conclusion from behaviour,
+    not from Google's code.
+  - **So the fix belongs to Google.** The head unit sends correct information and the phone confirms it. A case Google
+    probably never tested (a 2016 receiver with an added cluster) rather than a bug in the usual sense.
+  - **The only workaround on our side** would be a fake headlight switch: `dn` sends night and, about 1 s later, the real
+    value again. It would hold only until Google Maps goes dark again, the unit cannot see when that happens, and each
+    switch may flicker the centre screen and Apple Maps. Not built. It would make sense only if a specific event (a
+    maneuver, zoom, a cluster view change) turns out to bring the dark map back.
+  - The larger lag of Google Maps and Waze on the AID and the missing `showSpeedLimit` may come from the same gap (the
+    phone gets less information about the cluster screen than it expects). There is no evidence for that.
 - **Lanes without U-turns** (`rgl`): replaced by `rglu` (lanes with U-turn arrows), which is in v1.3.0.
