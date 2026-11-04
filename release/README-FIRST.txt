@@ -6,8 +6,8 @@ Polska wersja: README-FIRST.pl.txt
 
 WHAT THIS DOES
   Shows the CarPlay map (Apple Maps, Google Maps) on the 12.3" digital dashboard (AID),
-  with native VW turn arrows, distance and arrival time, map zoom from the steering wheel,
-  and the current song title.
+  with native VW turn arrows, lanes, distance bar, street name and arrival time, map zoom
+  from the steering wheel, and the current song title.
 
 WHO IT IS FOR
   Only this exact combination (it was tested on one car):
@@ -81,15 +81,15 @@ PART 2 - IN THE CAR
     "Forget This Car", then connect again. Still nothing: do not go on to step 3.
 
   Step 3. Install the rest (only if the map works)
-    Green menu -> pmcp_CarPlay_AID -> "3. Install all features or update: main map, arrows, lanes, ...".
-    (Already have an earlier version installed? Only this step and step 4 are needed: the button
-    skips what is already done and brings the rest up to date.)
+    Green menu -> pmcp_CarPlay_AID -> "3. Install all features or update: map, route guidance, ...".
+    (Already have an earlier version installed? See UPDATING below.)
     Expected:  PMCP_ALL_ON_OK
     Restart (volume knob 10 s). This start is a TRIAL.
 
   Step 4. Test, then confirm
     Check: CarPlay connects, the map is on the dashboard, and during navigation the VW turn
-    arrow, distance and arrival time appear (the arrow shows once the car moves).
+    arrow, distance and arrival time appear (the arrow shows once the car moves), plus lanes,
+    the distance bar before a turn and the street name.
       - Everything works: open the green menu and press "4. Confirm: everything works"
         IN THIS SAME START (do not switch the car off before it).
       - Something is wrong, or the screen stays black: just restart (volume knob 10 s).
@@ -100,6 +100,18 @@ PART 2 - IN THE CAR
 
   To remove everything: "Remove everything (back to factory files)", then restart.
   "Status (read-only)" shows what is installed.
+
+  UPDATING from an earlier version (v1.0 - v1.3):
+    1. Make CARD 1 from this package. In the car: "1. Check card and unit (read-only)".
+       Expected: PMCP_VERIFY_OK state=JAVA. "Status (read-only)" may show
+       "Route guidance system: old" and "packages of an earlier card: rglu" - that is expected.
+    2. "3. Install all features or update: ..."  ->  PMCP_ALL_ON_OK
+    3. Restart: this start is a TRIAL. Check the arrows, lanes, street name.
+    4. "4. Confirm: everything works" in this same start, then restart.
+    5. Make a NEW CARD 2 with the copy helper (option 2): rescue cards made before v1.4
+       do not restore the new route guidance driver.
+    Used the experimental card with Android Auto? Step 1 then shows state UNKNOWN; that is
+    expected. Button 3 first puts the factory Android Auto back, then updates the rest.
 
 ------------------------------------------------------------------------------------------
 EMERGENCY - CARD 2 (RESCUE)
@@ -114,9 +126,9 @@ EMERGENCY - CARD 2 (RESCUE)
        want to undo the map too.
     3. The card disarms itself after use, so it cannot run again by accident. To make it ready
        for the next time: on your computer start the copy helper and choose 3 (it also shows
-       the result of the run; WYNIK=OK = result OK).
+       the result of the run; RESULT=OK = it worked).
   Optional: you can test CARD 2 once on a working unit before step 1. It changes nothing on a
   unit without our files. Re-arm it afterwards with the copy helper, option 3.
 
-  Single features and other map layouts are in the submenu  pmcp_advanced  (Polish labels,
-  explained in docs/in-car-guide.md).
+  Single features and other map layouts are in the submenu  pmcp_advanced
+  (explained in docs/in-car-guide.md).

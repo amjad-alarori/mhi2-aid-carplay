@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mhi2-aid-carplay architecture</title>
+<style>
+:root{
+  --bg:#f7f7f5; --card:#ffffff; --ink:#1d1f21; --muted:#5f6670; --line:#c9ccd1;
+  --stock:#2f7d4f; --stock-bg:#e5f3ea;
+  --added:#2462a8; --added-bg:#e5eefa;
+  --repl:#b4531c; --repl-bg:#fbeee3;
+  --hook:#6a44b8; --hook-bg:#efe9fb;
+  --phone:#3b3f46; --phone-bg:#eceef1;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141518; --card:#1c1e22; --ink:#e7e8ea; --muted:#a2a8b0; --line:#3a3e45;
+    --stock:#6fcf97; --stock-bg:#1b3326;
+    --added:#7fb2f0; --added-bg:#18283d;
+    --repl:#f0a46e; --repl-bg:#3a2618;
+    --hook:#b89cf2; --hook-bg:#2a2140;
+    --phone:#c9ccd1; --phone-bg:#262a30;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141518; --card:#1c1e22; --ink:#e7e8ea; --muted:#a2a8b0; --line:#3a3e45;
+  --stock:#6fcf97; --stock-bg:#1b3326;
+  --added:#7fb2f0; --added-bg:#18283d;
+  --repl:#f0a46e; --repl-bg:#3a2618;
+  --hook:#b89cf2; --hook-bg:#2a2140;
+  --phone:#c9ccd1; --phone-bg:#262a30;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1120px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:19px;margin:36px 0 10px}
+p.lang{margin:0 0 8px;font-size:13.5px}
+.lang a{color:var(--added)}
+.lead{color:var(--muted);margin:0 0 18px;max-width:780px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 14px;font-size:13.5px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:16px;height:12px;border-radius:3px;border:2px solid}
+.sw.stock{background:var(--stock-bg);border-color:var(--stock)}
+.sw.added{background:var(--added-bg);border-color:var(--added)}
+.sw.repl{background:var(--repl-bg);border-color:var(--repl)}
+.sw.hook{background:var(--hook-bg);border-color:var(--hook);border-style:dashed}
+.sw.phone{background:var(--phone-bg);border-color:var(--phone)}
+.scroll{overflow-x:auto}
+svg{display:block;width:100%;min-width:860px;height:auto}
+svg text{fill:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+svg .t{font-size:13px;font-weight:600}
+svg .s{font-size:11px;fill:var(--muted)}
+svg .h{font-size:15px;font-weight:700}
+svg .lab{font-size:11px;font-weight:600}
+.b-stock{fill:var(--stock-bg);stroke:var(--stock);stroke-width:1.6}
+.b-added{fill:var(--added-bg);stroke:var(--added);stroke-width:1.6}
+.b-repl{fill:var(--repl-bg);stroke:var(--repl);stroke-width:1.6}
+.b-hook{fill:var(--hook-bg);stroke:var(--hook);stroke-width:1.6;stroke-dasharray:5 3}
+.b-phone{fill:var(--phone-bg);stroke:var(--phone);stroke-width:1.6}
+.b-frame{fill:none;stroke:var(--line);stroke-width:1.5}
+.b-row{fill:none;stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.a-a{stroke:var(--added);stroke-width:2;fill:none}
+.a-b{stroke:var(--repl);stroke-width:2;fill:none}
+.a-c{stroke:var(--hook);stroke-width:2;fill:none;stroke-dasharray:6 4}
+.a-g{stroke:var(--stock);stroke-width:2;fill:none}
+.c-a{fill:var(--added)} .c-b{fill:var(--repl)} .c-c{fill:var(--hook)} .c-g{fill:var(--stock)}
+.most{fill:var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 12px}
+.chip{border:2px solid;border-radius:7px;padding:5px 9px;font-size:13px;line-height:1.3}
+.chip small{display:block;color:var(--muted);font-size:11.5px}
+.chip.stock{background:var(--stock-bg);border-color:var(--stock)}
+.chip.added{background:var(--added-bg);border-color:var(--added)}
+.chip.repl{background:var(--repl-bg);border-color:var(--repl)}
+.chip.hook{background:var(--hook-bg);border-color:var(--hook);border-style:dashed}
+.chip.phone{background:var(--phone-bg);border-color:var(--phone)}
+.arr{color:var(--muted);font-weight:700}
+h3{font-size:16px;margin:0 0 4px}
+.card p{margin:6px 0}
+.card ul{margin:6px 0;padding-left:20px}
+code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);padding:1px 4px;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:10px;border:1.5px solid}
+.tag.stock{color:var(--stock);border-color:var(--stock)}
+.tag.added{color:var(--added);border-color:var(--added)}
+.tag.repl{color:var(--repl);border-color:var(--repl)}
+.tag.hook{color:var(--hook);border-color:var(--hook)}
+.note{border-left:4px solid var(--repl);padding:8px 12px;background:var(--repl-bg);border-radius:6px;margin:12px 0}
+.tw{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<p class="lang"><a href="architektura.html">Wersja polska</a></p>
+<h1>mhi2-aid-carplay architecture</h1>
+<div class="lead">What the system does in a Passat B8 (Discover Pro MHI2 MU1161, AID 791):
+<ul>
+  <li>where it gets the picture and the data from the phone;</li>
+  <li>which head unit files it replaces;</li>
+  <li>where it hooks into factory code;</li>
+  <li>what it never touches.</li>
+</ul>
+CarPlay (paths A-C) is shown as in release v1.4.0 "rg-main". Android Auto (path D) is work in progress: it is not in any
+release and is shown as tested in the car on 2026-11-04.</div>
+
+<div class="legend">
+  <span><i class="sw stock"></i>factory, untouched</span>
+  <span><i class="sw repl"></i>factory file replaced / overwritten</span>
+  <span><i class="sw added"></i>new file added by us</span>
+  <span><i class="sw hook"></i>interception (hook in factory code, LD_PRELOAD)</span>
+  <span><i class="sw phone"></i>phone</span>
+</div>
+
+<div class="card scroll">
+<svg viewBox="0 0 1000 600" role="img" aria-label="Architecture diagram: iPhone, MHI2 head unit, MOST bus, AID">
+<defs>
+  <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="c-a"/></marker>
+  <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="c-b"/></marker>
+  <marker id="mc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="c-c"/></marker>
+  <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="c-g"/></marker>
+</defs>
+
+<!-- iPhone -->
+<rect x="10" y="30" width="150" height="540" rx="18" class="b-phone"/>
+<text x="85" y="56" text-anchor="middle" class="h">iPhone</text>
+<rect x="22" y="78" width="126" height="60" rx="6" class="b-phone"/>
+<text x="85" y="98" text-anchor="middle" class="t">CarPlay</text>
+<text x="85" y="113" text-anchor="middle" class="s">head unit screen + a</text>
+<text x="85" y="126" text-anchor="middle" class="s">2nd "cluster" H.264</text>
+<rect x="22" y="245" width="126" height="60" rx="6" class="b-phone"/>
+<text x="85" y="265" text-anchor="middle" class="t">iAP2 Route</text>
+<text x="85" y="280" text-anchor="middle" class="s">Guidance: maneuver,</text>
+<text x="85" y="293" text-anchor="middle" class="s">distance, ETA, lanes</text>
+<rect x="22" y="395" width="126" height="50" rx="6" class="b-phone"/>
+<text x="85" y="416" text-anchor="middle" class="t">NowPlaying</text>
+<text x="85" y="432" text-anchor="middle" class="s">title, artist</text>
+<rect x="22" y="470" width="126" height="64" rx="6" class="b-phone"/>
+<text x="85" y="490" text-anchor="middle" class="t">Navigation</text>
+<text x="85" y="505" text-anchor="middle" class="s">Apple / Google Maps;</text>
+<text x="85" y="518" text-anchor="middle" class="s">zoom and night mode</text>
+<text x="85" y="530" text-anchor="middle" class="s">on request</text>
+
+<!-- Radio frame -->
+<rect x="190" y="14" width="570" height="572" rx="12" class="b-frame"/>
+<text x="205" y="36" class="h">Head unit Discover Pro MHI2 · MU1161 · QNX</text>
+
+<!-- Row A -->
+<rect x="200" y="48" width="550" height="148" rx="8" class="b-row"/>
+<text x="742" y="64" text-anchor="end" class="lab" style="fill:var(--added)">A · map picture</text>
+<rect x="212" y="75" width="128" height="52" rx="6" class="b-repl"/>
+<text x="276" y="96" text-anchor="middle" class="t">dio_manager</text>
+<text x="276" y="113" text-anchor="middle" class="s">→ wrapper.sh</text>
+<rect x="356" y="75" width="122" height="52" rx="6" class="b-hook"/>
+<text x="417" y="96" text-anchor="middle" class="t">core.so</text>
+<text x="417" y="113" text-anchor="middle" class="s">LD_PRELOAD</text>
+<rect x="500" y="75" width="104" height="52" rx="6" class="b-added"/>
+<text x="552" y="96" text-anchor="middle" class="t">ring</text>
+<text x="552" y="113" text-anchor="middle" class="s">/ramdisk/…ring.bin</text>
+<rect x="624" y="75" width="118" height="52" rx="6" class="b-added"/>
+<text x="683" y="96" text-anchor="middle" class="t">altscreen-</text>
+<text x="683" y="112" text-anchor="middle" class="t">most-bridge</text>
+<rect x="212" y="140" width="128" height="46" rx="6" class="b-added"/>
+<text x="276" y="159" text-anchor="middle" class="t">security-bridge</text>
+<text x="276" y="175" text-anchor="middle" class="s">+ pairing-helper</text>
+<rect x="500" y="140" width="242" height="46" rx="6" class="b-added"/>
+<text x="621" y="159" text-anchor="middle" class="t">carplay-cluster-supervisor</text>
+<text x="621" y="175" text-anchor="middle" class="s">starts and watches the bridge</text>
+
+<!-- Row B -->
+<rect x="200" y="210" width="550" height="122" rx="8" class="b-row"/>
+<text x="742" y="226" text-anchor="end" class="lab" style="fill:var(--repl)">B · VW route guidance</text>
+<rect x="212" y="245" width="130" height="60" rx="6" class="b-repl"/>
+<text x="277" y="266" text-anchor="middle" class="t">ipod-drvr-iap2.so</text>
+<text x="277" y="281" text-anchor="middle" class="s">+ iap2.cfg</text>
+<text x="277" y="294" text-anchor="middle" class="s">6 hooks + log gate</text>
+<rect x="512" y="245" width="104" height="60" rx="6" class="b-added"/>
+<text x="564" y="270" text-anchor="middle" class="t">rgi-observer</text>
+<text x="564" y="286" text-anchor="middle" class="s">pmcp-r1, supervised</text>
+<rect x="636" y="245" width="106" height="60" rx="6" class="b-added"/>
+<text x="689" y="266" text-anchor="middle" class="s">/ramdisk/</text>
+<text x="689" y="280" text-anchor="middle" class="s">carplay-route-</text>
+<text x="689" y="294" text-anchor="middle" class="s">guidance</text>
+
+<!-- Row C -->
+<rect x="200" y="346" width="550" height="230" rx="8" class="b-row"/>
+<text x="742" y="362" text-anchor="end" class="lab" style="fill:var(--hook)">C · HMI (Java)</text>
+<rect x="212" y="440" width="128" height="56" rx="6" class="b-repl"/>
+<text x="276" y="461" text-anchor="middle" class="t">lsd.sh</text>
+<text x="276" y="477" text-anchor="middle" class="s">+ 1 pmcp block</text>
+<text x="276" y="489" text-anchor="middle" class="s">(trial start)</text>
+<rect x="212" y="508" width="128" height="56" rx="6" class="b-added"/>
+<text x="276" y="529" text-anchor="middle" class="t">HMI_BOOT</text>
+<text x="276" y="545" text-anchor="middle" class="s">JAR list</text>
+<text x="276" y="557" text-anchor="middle" class="s">+ trial markers</text>
+
+<rect x="356" y="372" width="386" height="196" rx="8" class="b-stock"/>
+<text x="368" y="390" class="t">HMI Java (lsd.jxe)</text>
+<rect x="368" y="400" width="116" height="44" rx="6" class="b-hook"/>
+<text x="426" y="418" text-anchor="middle" class="t">nai</text>
+<text x="426" y="433" text-anchor="middle" class="s">NavActiveIgnore</text>
+<rect x="494" y="400" width="116" height="44" rx="6" class="b-hook"/>
+<text x="552" y="418" text-anchor="middle" class="t">np</text>
+<text x="552" y="433" text-anchor="middle" class="s">song title</text>
+<rect x="620" y="400" width="112" height="44" rx="6" class="b-hook"/>
+<text x="676" y="418" text-anchor="middle" class="t">rg</text>
+<text x="676" y="433" text-anchor="middle" class="s">guidance, lanes, street</text>
+<rect x="368" y="452" width="116" height="44" rx="6" class="b-hook"/>
+<text x="426" y="470" text-anchor="middle" class="t">zoom</text>
+<text x="426" y="485" text-anchor="middle" class="s">steering wheel keys</text>
+<rect x="620" y="452" width="84" height="44" rx="6" class="b-hook"/>
+<text x="662" y="470" text-anchor="middle" class="t">dn</text>
+<text x="662" y="485" text-anchor="middle" class="s">day/night</text>
+<rect x="368" y="508" width="116" height="48" rx="6" class="b-stock"/>
+<text x="426" y="528" text-anchor="middle" class="t">mostkombi</text>
+<text x="426" y="543" text-anchor="middle" class="s">map gate</text>
+<rect x="494" y="508" width="116" height="48" rx="6" class="b-stock"/>
+<text x="552" y="528" text-anchor="middle" class="t">BAP AudioSD</text>
+<text x="552" y="543" text-anchor="middle" class="s">"source" field</text>
+<rect x="620" y="508" width="112" height="48" rx="6" class="b-stock"/>
+<text x="676" y="528" text-anchor="middle" class="t">BAP NavSD</text>
+<text x="676" y="543" text-anchor="middle" class="s">VW arrows</text>
+
+<!-- MOST -->
+<rect x="785" y="30" width="26" height="540" rx="6" class="most"/>
+<text x="798" y="300" text-anchor="middle" class="t" transform="rotate(-90 798 300)">MOST bus (optical fibre)</text>
+
+<!-- AID -->
+<rect x="838" y="30" width="152" height="540" rx="12" class="b-stock"/>
+<text x="914" y="56" text-anchor="middle" class="h">AID 791</text>
+<text x="914" y="72" text-anchor="middle" class="s">separate ECU, untouched</text>
+<rect x="850" y="82" width="128" height="60" rx="6" class="b-stock"/>
+<text x="914" y="103" text-anchor="middle" class="t">Map video</text>
+<text x="914" y="118" text-anchor="middle" class="s">context 70 = VW</text>
+<text x="914" y="131" text-anchor="middle" class="s">72 = our stream</text>
+<rect x="850" y="245" width="128" height="60" rx="6" class="b-stock"/>
+<text x="914" y="266" text-anchor="middle" class="t">Arrow, distance</text>
+<text x="914" y="281" text-anchor="middle" class="s">ETA, lanes</text>
+<text x="914" y="294" text-anchor="middle" class="s">(native VW widgets)</text>
+<rect x="850" y="400" width="128" height="50" rx="6" class="b-stock"/>
+<text x="914" y="421" text-anchor="middle" class="t">Song title</text>
+<text x="914" y="437" text-anchor="middle" class="s">not "Apple CarPlay"</text>
+<rect x="850" y="490" width="128" height="50" rx="6" class="b-stock"/>
+<text x="914" y="511" text-anchor="middle" class="t">MFW arrow keys</text>
+<text x="914" y="527" text-anchor="middle" class="s">wheel → head unit</text>
+
+<!-- A arrows -->
+<path d="M148,108 L210,102" class="a-a" marker-end="url(#ma)"/>
+<text x="276" y="68" text-anchor="middle" class="lab" style="fill:var(--added)">"instrumentcluster" stream</text>
+<path d="M340,101 L354,101" class="a-a" marker-end="url(#ma)"/>
+<path d="M478,101 L498,101" class="a-a" marker-end="url(#ma)"/>
+<path d="M604,101 L622,101" class="a-a" marker-end="url(#ma)"/>
+<path d="M742,101 L783,101" class="a-a" marker-end="url(#ma)"/>
+<path d="M811,110 L848,110" class="a-a" marker-end="url(#ma)"/>
+<path d="M621,140 L660,129" class="a-a" marker-end="url(#ma)"/>
+
+<!-- B arrows -->
+<path d="M148,275 L210,275" class="a-b" marker-end="url(#mb)"/>
+<path d="M342,275 L510,275" class="a-b" marker-end="url(#mb)"/>
+<text x="440" y="268" text-anchor="middle" class="lab" style="fill:var(--repl)">/dev/ipod0/rgi-events</text>
+<path d="M616,275 L634,275" class="a-b" marker-end="url(#mb)"/>
+<path d="M689,305 L689,398" class="a-b" marker-end="url(#mb)"/>
+<path d="M718,444 L718,506" class="a-b" marker-end="url(#mb)"/>
+
+<!-- C arrows: np -->
+<path d="M148,416 C 250,416 290,360 360,360 L552,360 L552,398" class="a-c" marker-end="url(#mc)"/>
+<path d="M552,444 L552,506" class="a-c" marker-end="url(#mc)"/>
+<!-- zoom: UDP to core.so -->
+<path d="M368,474 L348,474 L348,150 L384,150 L384,129" class="a-c" marker-end="url(#mc)"/>
+<rect x="352" y="222" width="62" height="16" rx="3" style="fill:var(--card)"/>
+<text x="355" y="234" class="lab" style="fill:var(--hook)">UDP 7032</text>
+
+<!-- HMI <-> MOST <-> AID -->
+<path d="M744,524 L783,524" class="a-g" marker-end="url(#mg)"/>
+<text x="764" y="516" text-anchor="middle" class="s">BAP</text>
+<path d="M783,560 L744,560" class="a-g" marker-end="url(#mg)"/>
+<text x="764" y="578" text-anchor="middle" class="s">keys</text>
+<path d="M850,515 L813,515" class="a-g" marker-end="url(#mg)"/>
+<path d="M811,275 L848,275" class="a-g" marker-end="url(#mg)"/>
+<path d="M811,425 L848,425" class="a-g" marker-end="url(#mg)"/>
+<path d="M811,140 C 826,150 832,150 848,138" class="a-g" stroke-dasharray="4 3" marker-end="url(#mg)"/>
+<text x="828" y="168" text-anchor="middle" class="s">gate</text>
+</svg>
+</div>
+<div style="color:var(--muted);font-size:13px;margin-top:8px">Lines:
+<ul style="color:var(--muted);font-size:13px">
+  <li><b style="color:var(--added)">blue</b>: the map picture;</li>
+  <li><b style="color:var(--repl)">orange</b>: guidance data;</li>
+  <li><b style="color:var(--hook)">purple dashed</b>: code hooked into the HMI;</li>
+  <li><b style="color:var(--stock)">green</b>: factory channels (BAP, keys, map gate).</li>
+</ul>
+We change nothing on the MOST bus: our data travels in factory channels.</div>
+
+<h2>A · CarPlay map picture on the AID</h2>
+<div class="card">
+<div class="flow">
+  <span class="chip phone">iPhone<small>second H.264 stream 800×480</small></span><span class="arr">→</span>
+  <span class="chip repl">dio_manager = wrapper.sh<small>factory file moved to <code>stock_first/dio_manager.real</code></small></span><span class="arr">→</span>
+  <span class="chip hook">core.so in the dio_manager process<small>LD_PRELOAD; asks the phone for the cluster stream</small></span><span class="arr">→</span>
+  <span class="chip added">ring in /ramdisk</span><span class="arr">→</span>
+  <span class="chip added">altscreen-most-bridge<small>takes the MOST video channel (context 72)</small></span><span class="arr">→</span>
+  <span class="chip stock">AID 791</span>
+</div>
+<ul>
+  <li><b>What we overwrite:</b> only the <code>dio_manager</code> file (the factory CarPlay/AirPlay receiver). In its place is a script
+  that starts the <i>real</i> factory program with <code>core.so</code> (LD_PRELOAD) and the security-bridge library added.</li>
+  <li><b>What core.so intercepts:</b> the CarPlay session in <code>dio_manager</code>. It offers the iPhone a second "instrumentcluster"
+  screen with:
+  <ul>
+    <li>the map URL;</li>
+    <li>the safe area;</li>
+    <li>the frame rate (40 in <code>map-square-fps40</code>);</li>
+    <li>the physical size of 240×144 mm.</li>
+  </ul>
+  It writes the finished H.264 frames into the ring. It also listens on UDP <code>127.0.0.1:7032</code> to change the zoom when
+  the <code>zoom</code> package asks.</li>
+  <li><b>A variant is one file:</b> switching the map layout (map-clean, map-square…) replaces only <code>core.so</code>, then a restart.
+  All variants are built from one omonob base (pinned by hash) with the patches in <code>patches/mu1161/build_core.py</code>.</li>
+  <li><b>The factory gate stays:</b> the AID shows the stream only when the factory HMI (<code>mostkombi</code>, <code>WaitForServices</code>)
+  decides the VW navigation is ready, about 43 s after start. The fast start audit covers the attempts to get past that gate.
+  They failed, and the topic is closed.</li>
+</ul>
+</div>
+
+<h2>B · Native VW route guidance from the iPhone (arrows, ETA, lanes)</h2>
+<div class="card">
+<div class="flow">
+  <span class="chip phone">iPhone<small>iAP2 RouteGuidance 0x5201…, lanes 0x5204</small></span><span class="arr">→</span>
+  <span class="chip repl">ipod-drvr-iap2.so + iap2.cfg<small>replaced: tomasz-twardzicki's patch chain + our log gate</small></span><span class="arr">→</span>
+  <span class="chip added">rgi-observer pmcp-r1<small>reads /dev/ipod0/rgi-events</small></span><span class="arr">→</span>
+  <span class="chip added">/ramdisk/carplay-route-guidance</span><span class="arr">→</span>
+  <span class="chip hook">rg (Java)<small>LiveBridge in the NavSD classes</small></span><span class="arr">→</span>
+  <span class="chip stock">BAP NavSD → AID</span>
+</div>
+<ul>
+  <li><b>iAP2 driver:</b> the factory iPod/iAP2 driver gets 6 hooks and 3,271 B of added code, and <code>iap2.cfg</code> gets a new
+  <code>[ident]</code> block. With that, the head unit tells the iPhone "I support RouteGuidance" and the phone starts sending
+  maneuvers. Factory copies go to <code>carplaymaps/rollback/</code>. This is the only place we write to <code>/mnt/system</code>
+  (it goes back to read-only after the write). Our 76-byte <b>log gate</b> (v1.4) lets Tomasz's per-byte receive log run only
+  while <code>/dev/shmem/pmcp-rgi-debug</code> exists; it is off by default.</li>
+  <li><b>Reader:</b> <code>rgi-observer</code> starts from the pmcp block in <code>lsd.sh</code> when the <code>SYSTEM_ON</code> marker
+  exists, and writes the guidance state to a file in RAM. Since v1.4 it is <code>pmcp-r1</code>, derived from Tomasz's reader:
+  <ul>
+    <li>a supervisor process and a worker that does the driver reads;</li>
+    <li>after 1 s without data the supervisor writes one "invalid" record, so no stale arrow stays on screen;</li>
+    <li>after 10 s it kills the stuck worker and starts a new one with a growing delay;</li>
+    <li>it never ends by itself, and a file lock keeps a second reader out.</li>
+  </ul>
+  The earlier reader ended for good after 1.5 s without data, and the arrows were gone until the next start.</li>
+  <li><b>In the HMI:</b> the <code>rg</code> package changes where the factory navigation classes (NavSD, LaneGuidance,
+  TurnToInfo) get their data: from that file instead of from the VW navigation. Every call is guarded: on an error the factory
+  code runs. It carries:
+  <ul>
+    <li>arrow, distance, ETA (Tomasz's MU1427 port, with his strict iPhone → VW maneuver mapping);</li>
+    <li>lanes (Tomasz's MU1367 v1.4.0), with the VW U-turn symbols 114 (left) and 146 (right), which went back to
+    tomasz-twardzicki as PR #8;</li>
+    <li>the distance bar before the maneuver, the current street name and feed recovery (Tomasz's MU1367 v1.4.3);</li>
+    <li>maneuver fallbacks where the strict mapping gives no arrow: the start of a route, roundabout turns, U-turns and
+    ramps without an angle (table after harman-f's MibrRgiManeuvers).</li>
+  </ul></li>
+  <li>The AID draws the arrow, distance, ETA and lanes with its own factory widgets. It gets nothing new, only different data in a
+  known BAP format.</li>
+</ul>
+</div>
+
+<h2>C · HMI: one block in lsd.sh and the Java packages</h2>
+<div class="card">
+<p>The head unit HMI is the factory J9 Java VM running <code>lsd.jxe</code>. We <b>do not change</b> that file. The factory start script
+<code>lsd.sh</code> gets one block before J9 starts: it reads <code>HMI_BOOT</code> and puts our JARs before the factory classes
+(<code>-Xbootclasspath/p:</code>). Each JAR holds factory MU1161 classes changed only in selected instructions (ASM, with a check of
+the pattern and the hit count).</p>
+<div class="tw"><table>
+<tr><th>Package</th><th>Where it hooks in (factory class)</th><th>What it changes</th></tr>
+<tr><td><span class="tag hook">nai</span></td><td><code>CarPlayModeHandling</code>, <code>DSICarplayProxy.requestModeChange</code>, <code>ASLNavigationServices.stopGuidance</code>, AA <code>NavigationListener</code></td>
+<td>While the iPhone navigates, the head unit does not stop the VW navigation and does not take guidance away from the phone. Without it the AID map goes off when the phone navigates.</td></tr>
+<tr><td><span class="tag hook">np</span></td><td><code>HsmTarget.initializeDSI</code>, <code>CurrentStationInfo</code></td>
+<td>An extra listener for the NowPlaying attribute (not read by the factory code). The AID shows title, artist and album instead of "Apple CarPlay".</td></tr>
+<tr><td><span class="tag hook">rg</span></td><td>NavSD classes + <code>LaneGuidance</code> + <code>TurnToInfo</code></td>
+<td>Guidance data, lanes, distance bar and street name from the iPhone instead of from the VW navigation (path B). Replaces
+<code>rg</code>/<code>rglu</code> of v1.3 (java-update).</td></tr>
+<tr><td><span class="tag hook">zoom</span></td><td><code>DSIKeyPanelDispatcher.updateKey2</code></td>
+<td>A short press of the up/down arrow on the steering wheel sends <code>zoom-in</code>/<code>zoom-out</code> over UDP to <code>core.so</code>. The key is not taken over: the cluster menu still works.</td></tr>
+<tr><td><span class="tag hook">dn</span></td><td><code>ASLHandler</code> (after <code>startService</code> and on entry to <code>handleDayNightMode</code>)</td>
+<td>Sends the day/night mode to the phone again after 5, 15 and 30 s, because the cluster screen appears later than the single factory send.</td></tr>
+</table></div>
+<p style="margin-top:10px"><b>Trial start:</b> a new JAR set loads once. It stays only after "4. Confirm" in GEM during that start.
+Without a confirm the next start is factory, so a broken set is gone after one restart.</p>
+</div>
+
+<h2>D · Android Auto (work in progress, not in a release)</h2>
+<p class="lead">The picture takes the same path as CarPlay: the same RAM ring, the same <code>altscreen-most-bridge</code> and the same
+MOST channel. Two things differ:</p>
+<ul class="lead" style="margin-top:-10px">
+  <li>the input: the AA receiver <code>gal</code> instead of <code>dio_manager</code>;</li>
+  <li>who takes the MOST channel: the feeder instead of the CarPlay supervisor.</li>
+</ul>
+<p class="lead">The two phones do not work at the same time.</p>
+<div class="card scroll">
+<svg viewBox="0 0 1000 400" role="img" aria-label="Android Auto diagram: phone, gal with hook, feeder, ring and bridge, MOST, AID">
+<defs>
+  <marker id="da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="c-a"/></marker>
+  <marker id="db" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="c-b"/></marker>
+  <marker id="dg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="c-g"/></marker>
+</defs>
+<rect x="10" y="30" width="150" height="340" rx="18" class="b-phone"/>
+<text x="85" y="56" text-anchor="middle" class="h">Android phone</text>
+<rect x="22" y="72" width="126" height="64" rx="6" class="b-phone"/>
+<text x="85" y="92" text-anchor="middle" class="t">Android Auto</text>
+<text x="85" y="107" text-anchor="middle" class="s">head unit screen + a</text>
+<text x="85" y="120" text-anchor="middle" class="s">2nd cluster 800×480</text>
+<rect x="22" y="228" width="126" height="76" rx="6" class="b-phone"/>
+<text x="85" y="248" text-anchor="middle" class="t">Google Maps</text>
+<text x="85" y="263" text-anchor="middle" class="s">navigation messages</text>
+<text x="85" y="276" text-anchor="middle" class="s">0x8003/8006/8007</text>
+<text x="85" y="289" text-anchor="middle" class="s">(protocol 1.7)</text>
+
+<rect x="190" y="14" width="570" height="372" rx="12" class="b-frame"/>
+<text x="205" y="36" class="h">Head unit Discover Pro MHI2 · MU1161</text>
+
+<rect x="212" y="70" width="128" height="58" rx="6" class="b-repl"/>
+<text x="276" y="91" text-anchor="middle" class="t">gal</text>
+<text x="276" y="106" text-anchor="middle" class="s">→ wrapper.sh</text>
+<text x="276" y="119" text-anchor="middle" class="s">(factory = gal.real)</text>
+<rect x="356" y="70" width="132" height="58" rx="6" class="b-hook"/>
+<text x="422" y="91" text-anchor="middle" class="t">libgal_hook.so</text>
+<text x="422" y="106" text-anchor="middle" class="s">LD_PRELOAD in gal</text>
+<text x="422" y="119" text-anchor="middle" class="s">MacsInSpace + patches</text>
+<rect x="504" y="70" width="112" height="58" rx="6" class="b-added"/>
+<text x="560" y="91" text-anchor="middle" class="t">aa-most-feeder</text>
+<text x="560" y="106" text-anchor="middle" class="s">the hook's "player"</text>
+<text x="560" y="119" text-anchor="middle" class="s">takes MOST</text>
+<rect x="632" y="70" width="112" height="58" rx="6" class="b-added"/>
+<text x="688" y="91" text-anchor="middle" class="t">ring + bridge</text>
+<text x="688" y="106" text-anchor="middle" class="s">the same as</text>
+<text x="688" y="119" text-anchor="middle" class="s">for CarPlay</text>
+
+<rect x="212" y="146" width="128" height="50" rx="6" class="b-added"/>
+<text x="276" y="166" text-anchor="middle" class="t">AA_BOOT</text>
+<text x="276" y="182" text-anchor="middle" class="s">AA trial start</text>
+<rect x="504" y="146" width="240" height="50" rx="6" class="b-stock"/>
+<text x="624" y="166" text-anchor="middle" class="t">Does CarPlay hold MOST?</text>
+<text x="624" y="182" text-anchor="middle" class="s">bridge.ready + bridge → wait ≤ 20 s</text>
+
+<rect x="356" y="236" width="150" height="62" rx="6" class="b-added"/>
+<text x="431" y="257" text-anchor="middle" class="t">maneuver mailbox</text>
+<text x="431" y="272" text-anchor="middle" class="s">/ramdisk/pmcp-aa-rg/</text>
+<text x="431" y="285" text-anchor="middle" class="s">Tomasz format, no ETA</text>
+<rect x="530" y="220" width="214" height="152" rx="8" class="b-stock"/>
+<text x="542" y="238" class="t">HMI Java (lsd.jxe)</text>
+<rect x="542" y="248" width="190" height="48" rx="6" class="b-hook"/>
+<text x="637" y="268" text-anchor="middle" class="t">rg + AA variant</text>
+<text x="637" y="284" text-anchor="middle" class="s">connection 3 (AA) → AA dir</text>
+<rect x="542" y="312" width="190" height="48" rx="6" class="b-stock"/>
+<text x="637" y="332" text-anchor="middle" class="t">BAP NavSD</text>
+<text x="637" y="347" text-anchor="middle" class="s">VW arrows</text>
+
+<rect x="785" y="30" width="26" height="340" rx="6" class="most"/>
+<text x="798" y="200" text-anchor="middle" class="t" transform="rotate(-90 798 200)">MOST bus</text>
+<rect x="838" y="30" width="152" height="340" rx="12" class="b-stock"/>
+<text x="914" y="56" text-anchor="middle" class="h">AID 791</text>
+<rect x="850" y="72" width="128" height="58" rx="6" class="b-stock"/>
+<text x="914" y="94" text-anchor="middle" class="t">Map video</text>
+<text x="914" y="110" text-anchor="middle" class="s">Android Auto picture</text>
+<rect x="850" y="300" width="128" height="58" rx="6" class="b-stock"/>
+<text x="914" y="322" text-anchor="middle" class="t">Arrow, distance</text>
+<text x="914" y="338" text-anchor="middle" class="s">to maneuver (native)</text>
+
+<path d="M148,100 L210,100" class="a-a" marker-end="url(#da)"/>
+<path d="M340,99 L354,99" class="a-a" marker-end="url(#da)"/>
+<path d="M488,99 L502,99" class="a-a" marker-end="url(#da)"/>
+<path d="M616,99 L630,99" class="a-a" marker-end="url(#da)"/>
+<path d="M744,99 L783,99" class="a-a" marker-end="url(#da)"/>
+<path d="M811,101 L848,101" class="a-a" marker-end="url(#da)"/>
+<path d="M560,128 L560,144" class="a-g" marker-end="url(#dg)"/>
+<path d="M148,262 C 260,262 320,222 360,222 L380,222 L380,130" class="a-b" marker-end="url(#db)"/>
+<text x="232" y="292" class="lab" style="fill:var(--repl)">via gal</text>
+<path d="M431,128 L431,234" class="a-b" marker-end="url(#db)"/>
+<text x="437" y="214" class="lab" style="fill:var(--repl)">gamma</text>
+<path d="M506,267 L540,269" class="a-b" marker-end="url(#db)"/>
+<path d="M637,296 L637,310" class="a-b" marker-end="url(#db)"/>
+<path d="M744,336 L783,336" class="a-g" marker-end="url(#dg)"/>
+<path d="M811,329 L848,329" class="a-g" marker-end="url(#dg)"/>
+</svg>
+</div>
+<div class="card" style="margin-top:14px">
+<div class="flow">
+  <span class="chip phone">Android phone<small>second "cluster" screen, H.264</small></span><span class="arr">→</span>
+  <span class="chip repl">gal = wrapper.sh<small>factory AA receiver kept as <code>gal.real</code></small></span><span class="arr">→</span>
+  <span class="chip hook">libgal_hook.so<small>LD_PRELOAD; offers the second screen</small></span><span class="arr">→</span>
+  <span class="chip added">aa-most-feeder<small>takes MOST, writes into the ring</small></span><span class="arr">→</span>
+  <span class="chip added">altscreen-most-bridge</span><span class="arr">→</span>
+  <span class="chip stock">AID 791</span>
+</div>
+<ul>
+  <li><b>What we overwrite:</b> the file <code>/mnt/app/eso/bin/apps/gal</code> (the factory Android Auto receiver). In its place is a
+  script that starts the factory program (<code>gal.real</code>, checked by hash) with the hook added. <code>smartphone_integrator.json</code>
+  and <code>/mnt/system</code> stay factory. MacsInSpace edits that file; we do not.</li>
+  <li><b>What the hook intercepts:</b> the AA session in <code>gal</code>. It offers the phone a second 800×480 screen (the cluster) and
+  hands its H.264 stream to a "player", which is our feeder. Base: MacsInSpace <code>mib-cluster-map</code> @ <code>07361db</code>,
+  plus our patches:
+  <ul>
+    <li>nothing is read from the SD card;</li>
+    <li>a fresh IDR frame on request;</li>
+    <li>translation of the 1.7 navigation messages to the 1.2 ones the head unit's receiver understands.</li>
+  </ul></li>
+  <li><b>Who takes the MOST channel:</b> with CarPlay the supervisor does it; with AA the feeder does it itself (<code>dmdt</code>, context 72).
+  After the session the feeder gives the channel back to the VW map. It leaves the channel alone while CarPlay holds it
+  (<code>/ramdisk/carplay-bridge.ready</code> plus a running bridge process) and waits for that up to 20 s. After the takeover it
+  waits 5 s and then holds and repeats the phone's first key frame (IDR) for 3 s. Since feeder v8 it reuses CarPlay's 16 MB
+  ring in place: <code>dio_manager</code> keeps that ring mapped, so deleting it filled <code>/ramdisk</code> and AA had no picture
+  after CarPlay.</li>
+  <li><b>Gamma (maneuvers as native VW arrows):</b> the hook reads the Google Maps navigation messages before the translation
+  overwrites them:
+  <ul>
+    <li>0x8003: status;</li>
+    <li>0x8006: next maneuver;</li>
+    <li>0x8007: metres to that maneuver.</li>
+  </ul>
+  It writes them in tomasz-twardzicki's mailbox format (synthetic iAP2 0x5201/0x5202) to its <b>own</b> directory
+  <code>/ramdisk/pmcp-aa-rg</code>, never to the CarPlay directory. An AA variant of the guidance package reads that directory on an
+  AA connection and works like <code>rg</code> with CarPlay. Distance and time to destination stay factory, because the AA picture
+  shows them. Stale data expires after 1.5 s. In a test drive 94 of 94 maneuvers were recognised.</li>
+  <li><b>AA trial start:</b> separate from the Java one. <code>AA_BOOT</code> is the set id: the mode plus hashes of the hook, the feeder and
+  the settings. A new set runs with the hook for one head unit start only, and stays after "AA Confirm". The markers
+  <code>DISABLED</code> (rescue card) and <code>AA_DISABLED</code> turn the hook off. "AA remove" and "Remove everything" put the factory
+  <code>gal</code> back. The v1.4 release card can always do that too ("Remove experimental Android Auto", and as the first step
+  of button 3 and of "Remove everything"): it writes only on a pmcp install and only from a <code>gal.real</code> with the
+  factory hash.</li>
+  <li><b>Known limits:</b>
+  <ul>
+    <li>open: in about half of the connections the picture starts dark with artefacts, and it can also be lost during a
+    drive, because the phone sends one key frame per session; the workaround is to plug the phone in again;</li>
+    <li>re-sending the video config to the phone drops the connection about 9 s later, so it is not used;</li>
+    <li>the CarPlay supervisor does not know about AA, so plugging in an iPhone during AA takes the channel;</li>
+    <li>AA needs path A, because it uses that path's bridge;</li>
+    <li>we do not install <code>VCAndroidAuto.jar</code> (adi961): on a VW it blanks the cluster map once a route starts.</li>
+  </ul></li>
+</ul>
+</div>
+
+<h2>Installer and rescue paths</h2>
+<div class="grid">
+<div class="card">
+<h3>Card 1: pmcp.sh from the GEM menu (M.I.B.)</h3>
+<div class="flow">
+  <span class="chip stock">STOCK</span><span class="arr">→ 2. Install map →</span>
+  <span class="chip added">VIDEO<small>stage A: dio_manager, carplaymaps</small></span><span class="arr">→ 3. Install all →</span>
+  <span class="chip hook">JAVA (trial)</span><span class="arr">→ 4. Confirm →</span>
+  <span class="chip hook">JAVA</span>
+</div>
+<ul>
+  <li>It first checks every head unit file and card file by exact hash and size. An unknown state (<code>UNKNOWN</code>, e.g. another mod)
+  means no changes.</li>
+  <li>It copies to a staging directory, checks the copies, and only then switches with one <code>mv</code>. After the switch it checks
+  again; on an error it rolls back automatically.</li>
+  <li>The factory copies of <code>lsd.sh</code>, <code>dio_manager</code>, the iAP2 driver and <code>iap2.cfg</code> are kept in
+  <code>/mnt/app/carplaymaps/rollback</code>. "Remove everything" restores all of them and checks the hashes.</li>
+  <li>Updates in place (v1.4): button 3 first replaces an earlier card's driver and reader (<code>rg-update</code>, known hashes
+  only) and its Java packages (<code>java-update</code>: one new set, one trial start). New JARs get file names no earlier card
+  used, so a confirmed set never runs an unconfirmed file.</li>
+  <li>On the Mac, tests run <code>pmcp.sh</code> on a copy of the head unit file tree (ksh and mksh) and simulate a power loss before
+  every write.</li>
+</ul>
+</div>
+<div class="card">
+<h3>Card 2: rescue</h3>
+<ul>
+  <li>It starts by itself in update mode (SWDL), without GEM. In that mode the pmcp block in <code>lsd.sh</code> does nothing, so the
+  HMI is always factory.</li>
+  <li>It restores the factory HMI and writes <code>/mnt/persist/pmcp/DISABLED</code>, which turns the whole Java block off.
+  It also puts the factory iAP2 driver back (both driver sizes, v1.0-v1.3 and v1.4). Its log is
+  <code>PMCP_RESCUE_LOG.txt</code> (<code>RESULT=OK</code>).</li>
+  <li>Stage A (picture) does not touch the HMI. The worst result of a failure there is no CarPlay; GEM and "Remove everything" still
+  work.</li>
+</ul>
+<h3 style="margin-top:12px">State outside the head unit</h3>
+<ul>
+  <li>The AID is a separate ECU. A head unit restart does not reset it. After the kf4 attempt only letting the car sleep helped
+  (locked, 15-20 min).</li>
+</ul>
+</div>
+</div>
+
+<h2>Summary: what we overwrite, what we intercept, what we leave alone</h2>
+<div class="card tw">
+<table>
+<tr><th>Kind</th><th>Item</th><th>Where in the head unit</th><th>How to undo</th></tr>
+<tr><td><span class="tag repl">overwritten</span></td><td><code>dio_manager</code> → wrapper</td><td><code>/mnt/app/…</code> (original in <code>carplaymaps/stock_first</code>)</td><td>restore / Remove everything</td></tr>
+<tr><td><span class="tag repl">overwritten</span></td><td><code>lsd.sh</code> (+1 block)</td><td><code>/mnt/app/eso/hmi/lsd/</code></td><td>java-off of the last package, restore, card 2</td></tr>
+<tr><td><span class="tag repl">overwritten</span></td><td><code>ipod-drvr-iap2.so</code>, <code>iap2.cfg</code></td><td><code>/mnt/app/armle/lib/dll/</code>, <code>/mnt/system/etc/mm/</code></td><td>"Route guidance system off", restore</td></tr>
+<tr><td><span class="tag hook">intercepted</span></td><td><code>core.so</code> (+ security-bridge) in the <code>dio_manager</code> process</td><td>LD_PRELOAD from <code>/mnt/app/carplaymaps</code></td><td>together with the wrapper</td></tr>
+<tr><td><span class="tag hook">intercepted</span></td><td>JARs nai, np, rg, zoom, dn (changed copies of HMI classes)</td><td><code>/mnt/app/eso/hmi/lsd/jars/</code></td><td>no Confirm = factory start; java-off; card 2</td></tr>
+<tr><td><span class="tag added">added</span></td><td>bridge, supervisor, pairing-helper, rgi-observer, HMI_BOOT, core.so variants</td><td><code>/mnt/app/carplaymaps/</code></td><td>restore removes the whole directory</td></tr>
+<tr><td><span class="tag repl">overwritten (AA)</span></td><td><code>gal</code> → wrapper</td><td><code>/mnt/app/eso/bin/apps/</code> (original as <code>carplaymaps/aa/gal.real</code>)</td><td>AA remove, Remove everything (also from the v1.4 release card)</td></tr>
+<tr><td><span class="tag hook">intercepted (AA)</span></td><td><code>libgal_hook.so</code> (+ <code>libdmdt_flush.so</code>) in the <code>gal</code> process; AA variant of the guidance JAR</td><td>LD_PRELOAD from <code>/mnt/app/carplaymaps/aa/</code>; <code>jars/</code></td><td>no AA Confirm = factory <code>gal</code>; java-off</td></tr>
+<tr><td><span class="tag added">added (AA)</span></td><td><code>aa-most-feeder</code>, <code>gal-hook.conf</code>, <code>feeder.conf</code>, <code>AA_BOOT</code></td><td><code>/mnt/app/carplaymaps/aa/</code></td><td>AA remove</td></tr>
+<tr><td><span class="tag added">added</span></td><td>trial markers, <code>boot.log</code></td><td><code>/mnt/persist/pmcp/</code></td><td>restore</td></tr>
+<tr><td><span class="tag stock">left alone</span></td><td>firmware (official K4525 only), <code>lsd.jxe</code>, VW navigation and map database, HMI start order, the AID and its coding, <code>smartphone_integrator.json</code>, M.I.B. (PATCH AIO, CarPlay activation, EU Conversion, TMC, SWDL, Block 5F…)</td><td>—</td><td>—</td></tr>
+</table>
+<div class="note">Rules:
+<ul>
+  <li>no cross-flash;</li>
+  <li>a fail-closed installer: hash and size, staging, rollback, rescue card;</li>
+  <li>no map sequence is sent to the AID before the VW navigation is really ready, and the HMI start order is not changed
+  (lessons from the kf4 audit).</li>
+</ul></div>
+</div>
+
+</main>
+</body>
+</html>

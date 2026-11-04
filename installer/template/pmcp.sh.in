@@ -12,6 +12,12 @@
 #   pmcp.sh java-retry          allow one more trial boot of the current Java set
 #   pmcp.sh rg-system-on        package E system part: patched iAP2 driver, iap2.cfg [ident], route guidance reader
 #   pmcp.sh rg-system-off       factory iAP2 driver and iap2.cfg back
+#   pmcp.sh rg-update           RG on with an older pmcp driver/reader (RG_KNOWN): replace them in place by this card's
+#                               ones; the factory copies are checked, kept and stay the way back (rg-system-off)
+#   pmcp.sh java-update         Java set with packages of an earlier card (JAVA_OLD): one new set with this card's
+#                               packages (rglu and the experimental rg variants become rg), one trial boot
+#   pmcp.sh aa-remove           Android Auto of an experimental card off: factory gal back (only from a copy with the
+#                               factory hash), its files and markers removed; works in any state (also UNKNOWN due to AA)
 #   pmcp.sh restore             back to the exact factory files
 #
 # Nothing is written before every input has been hashed and every unit file matches a known state.
@@ -38,10 +44,20 @@ STOCK_DRV_SHA="@@STOCK_DRV_SHA@@"
 STOCK_DRV_SIZE="@@STOCK_DRV_SIZE@@"
 STOCK_CFG_SHA="@@STOCK_CFG_SHA@@"
 STOCK_CFG_SIZE="@@STOCK_CFG_SIZE@@"
+STOCK_GAL_SHA="@@STOCK_GAL_SHA@@"
+STOCK_GAL_SIZE="@@STOCK_GAL_SIZE@@"
 # Every SHA-256 above (manifest, IDs, factory files) -> the SHA-1 the unit actually computes (factory sha1sum, hash_of).
 # Both are computed by build_sd.py from the same bytes; the self test proves the unit tool before any hash is trusted.
 HASHMAP='
 @@HASHMAP@@
+'
+# Earlier pmcp route guidance files this card may replace with rg-update ("DRIVER|READER sha256 size" per line).
+RG_KNOWN='
+@@RG_KNOWN@@
+'
+# Java packages of earlier cards that java-update replaces ("name sha256 size jarfile newname" per line).
+JAVA_OLD='
+@@JAVA_OLD@@
 '
 GAWK_SIZE=487088
 
@@ -81,6 +97,7 @@ PERSIST="$MMX/mnt/persist/pmcp"
 DRV="$APP/armle/lib/dll/ipod-drvr-iap2.so"
 CFG="$MMX/mnt/system/etc/mm/iap2.cfg"
 RGDIR="$ROOT/rg"
+GAL="$APP/eso/bin/apps/gal"
 GAWK="$APP/armle/usr/bin/gawk"
 if [ -z "$MMX" ]; then SHA1=/net/rcc/usr/bin/sha1sum; else SHA1=/usr/bin/sha1sum; fi
 
@@ -176,9 +193,11 @@ java_catalog() {
     done
 }
 
-# java_alternative NAME -> the packages that replace the same classes (never in one set with NAME), or nothing
-java_alternative() {
-    case "$1" in rg) echo rglu ;; rglu) echo rg ;; esac
+# java_old NAME SHA8 -> "sha size jarfile newname" of an earlier card's package, or nothing
+java_old() {
+    echo "$JAVA_OLD" | while read _o_n _o_h _o_s _o_f _o_t; do
+        [ "$_o_n" = "$1" ] && [ "`first8 $_o_h`" = "$2" ] && echo "$_o_h $_o_s $_o_f $_o_t"
+    done
 }
 
 java_jarfile() {
@@ -260,9 +279,11 @@ firmware_identity() {
     say "  ok lsd.jxe size $STOCK_JXE_SIZE (MU1161)"
 }
 
-# Names of our JARs that are present in the HMI jars directory
+# Our JAR files (this card's and earlier cards') present in the HMI jars directory, one file name per line
 our_jars_present() {
-    java_catalog | while read _o_n _o_f; do [ -e "$JARS/$_o_f" ] && echo "$_o_n"; done
+    { java_catalog | while read _o_n _o_f; do echo "$_o_f"; done
+      echo "$JAVA_OLD" | while read _o_n _o_h _o_s _o_f _o_t; do [ -n "$_o_f" ] && echo "$_o_f"; done
+    } | while read _o_f; do [ -e "$JARS/$_o_f" ] && echo "$_o_f"; done
 }
 
 # carplaymaps/HMI_BOOT: one line "SET_ID JAR JAR ...", the only file lsd.sh reads. SET_ID is name-sha8 joined by "+",
@@ -287,38 +308,61 @@ current_set() {
     echo "$_n_out"
 }
 
-# Every JAR of the current set present with the manifest hash, no other JAR of ours present,
-# HMI_BOOT exactly "id jars" as computed from the manifest.
+# Every part "name-sha8" of the set id is a package of this card (manifest) or of an earlier card (JAVA_OLD), its JAR is
+# present with that hash, and HMI_BOOT is exactly "id jars". Only then: JAVA_OLD_SET = the names of earlier cards'
+# packages in the set (java-update replaces them), JAVA_STRAY = JAR files of ours the set does not list (left by an
+# interrupted java-on/java-update; never loaded, since the lsd.sh block loads only the HMI_BOOT list; java-update and
+# restore remove them).
 java_set_consistent() {
-    _j_names=`current_set`
-    [ -n "$_j_names" ] || return 1
-    _j_jars=""; _j_id=""
-    for _j_n in $_j_names; do
+    JAVA_OLD_SET=""; JAVA_STRAY=""
+    _j_id=`boot_set_id`
+    [ -n "$_j_id" ] || return 1
+    _j_x=$_j_id; _j_jars=""; _j_old=""
+    while :; do
+        _j_part=${_j_x%%+*}
+        _j_n=${_j_part%-*}; _j_8=${_j_part##*-}
         set -- `manifest_get "JAR_$_j_n"`
-        [ -n "$1" ] || return 1
-        _j_f=${3##*/}
+        if [ -n "$1" ] && [ "`first8 $1`" = "$_j_8" ]; then
+            _j_f=${3##*/}
+        else
+            set -- `java_old "$_j_n" "$_j_8"`
+            [ -n "$1" ] || return 1
+            _j_f=$3; _j_old="$_j_old${_j_old:+ }$_j_n"
+        fi
         matches "$JARS/$_j_f" "$1" "$2" || return 1
-        _j_jars="$_j_jars${_j_jars:+ }$_j_f"; _j_id="$_j_id${_j_id:++}$_j_n-`first8 $1`"
+        _j_jars="$_j_jars${_j_jars:+ }$_j_f"
+        [ "$_j_part" = "$_j_x" ] && break
+        _j_x=${_j_x#*+}
     done
-    for _j_n in `our_jars_present`; do
-        case " $_j_names " in *" $_j_n "*) ;; *) return 1 ;; esac
+    [ "`cat "$ROOT/HMI_BOOT" 2>/dev/null`" = "$_j_id $_j_jars" ] || return 1
+    _j_stray=""
+    for _j_f in `our_jars_present`; do
+        case " $_j_jars " in *" $_j_f "*) ;; *) _j_stray="$_j_stray${_j_stray:+ }$_j_f" ;; esac
     done
-    [ "`cat "$ROOT/HMI_BOOT" 2>/dev/null`" = "$_j_id $_j_jars" ]
+    JAVA_OLD_SET=$_j_old; JAVA_STRAY=$_j_stray
+    return 0
 }
 
 # state -> STOCK | VIDEO | JAVA | PARTIAL | UNKNOWN (reason in STATE_WHY)
 #   VIDEO: stage A (wrapper active, factory lsd.sh, no JAR of ours)   JAVA: stage A + lsd.sh block + a consistent JAR set
 detect_state() {
-    STATE=UNKNOWN; STATE_WHY=""; RGSYS=unknown
+    STATE=UNKNOWN; STATE_WHY=""; RGSYS=unknown; JAVA_OLD_SET=""; JAVA_STRAY=""
     set -- `manifest_get WRAPPER`; W_SHA=$1; W_SIZE=$2
     set -- `manifest_get LSD_JAVA`; LJ_SHA=$1; LJ_SIZE=$2
     present=`our_jars_present`
     if [ ! -e "$ROOT" ] && [ -z "$present" ] && [ ! -e "$JARS/CarPlayNavigationPatch.jar" ] && [ ! -e "$JARS/CarPlayClusterControls.jar" ]; then
         if matches "$LSD" "$STOCK_LSD_SHA" "$STOCK_LSD_SIZE" && matches "$DIO" "$STOCK_DIO_SHA" "$STOCK_DIO_SIZE" \
-            && matches "$DRV" "$STOCK_DRV_SHA" "$STOCK_DRV_SIZE" && matches "$CFG" "$STOCK_CFG_SHA" "$STOCK_CFG_SIZE"; then
+            && matches "$DRV" "$STOCK_DRV_SHA" "$STOCK_DRV_SIZE" && matches "$CFG" "$STOCK_CFG_SHA" "$STOCK_CFG_SIZE" \
+            && matches "$GAL" "$STOCK_GAL_SHA" "$STOCK_GAL_SIZE"; then
             STATE=STOCK; RGSYS=off; return
         fi
-        STATE_WHY="no carplaymaps, but lsd.sh, dio_manager, the iAP2 driver or iap2.cfg is not the factory file"
+        STATE_WHY="no carplaymaps, but lsd.sh, dio_manager, gal, the iAP2 driver or iap2.cfg is not the factory file"
+        return
+    fi
+    # Android Auto of an experimental card (gal wrapper, carplaymaps/aa): no other action of this card runs with it;
+    # aa-remove (also the first step of button 3 and of restore) puts the factory gal back from its verified copy.
+    if aa_exp_present; then
+        STATE_WHY="Android Auto of an experimental card is installed: Remove experimental Android Auto (or button 3, or Remove everything) takes it off first"
         return
     fi
     if [ -e "$JARS/CarPlayNavigationPatch.jar" ] \
@@ -328,6 +372,7 @@ detect_state() {
         STATE_WHY="carplaymaps or a navigation JAR exists, but it is not a pmcp install (another mod?)"
         return
     fi
+    # RGSYS old (RG on with an earlier card's driver/reader) works as it is; rg-update brings this card's files
     rg_state
     if [ "$RGSYS" != unknown ] && matches "$DIO" "$W_SHA" "$W_SIZE"; then
         if [ -z "$present" ] && matches "$LSD" "$STOCK_LSD_SHA" "$STOCK_LSD_SIZE"; then
@@ -341,21 +386,89 @@ detect_state() {
     STATE_WHY="pmcp factory copies are intact, live files are mixed (interrupted action or rescue card): run restore"
 }
 
-# RGSYS -> off (factory driver + cfg, no SYSTEM_ON) | on (our driver, cfg, reader, SYSTEM_ON, factory copies kept) | unknown
+# Android Auto of an experimental card (branch experimental, aa-on): gal replaced by its wrapper, carplaymaps/aa with
+# the factory gal copy gal.real, or leftovers of an interrupted aa-on / aa-off (.aa-new, gal.pmcp-new, gal.pmcp-restore).
+# Its saved logs (carplaymaps/logs/aa-log-*) are left alone: harmless, and restore removes carplaymaps anyway.
+# carplaymaps is our install: version file, verified factory dio_manager and lsd.sh copies, no other navigation mod
+pmcp_root() {
+    [ -s "$ROOT/PMCP_VERSION" ] && [ ! -e "$JARS/CarPlayNavigationPatch.jar" ] \
+        && matches "$ROOT/stock_first/dio_manager.real" "$STOCK_DIO_SHA" "$STOCK_DIO_SIZE" \
+        && matches "$ROOT/rollback/lsd.sh" "$STOCK_LSD_SHA" "$STOCK_LSD_SIZE"
+}
+
+aa_exp_present() {
+    [ -e "$ROOT/aa" ] || [ -e "$ROOT/.aa-new" ] || [ -e "$GAL.pmcp-new" ] || [ -e "$GAL.pmcp-restore" ] \
+        || ! matches "$GAL" "$STOCK_GAL_SHA" "$STOCK_GAL_SIZE"
+}
+
+# aa_exp_off: factory gal back (staged from carplaymaps/aa/gal.real, which must have the factory hash), then the AA files
+# and markers go. Fails before any write when gal is not factory and no verified copy exists. Idempotent: an interrupted
+# run is finished by running it again (gal is factory then, so no copy is needed).
+aa_exp_off() {
+    if ! matches "$GAL" "$STOCK_GAL_SHA" "$STOCK_GAL_SIZE"; then
+        matches "$ROOT/aa/gal.real" "$STOCK_GAL_SHA" "$STOCK_GAL_SIZE" || fail "AA_REMOVE_FACTORY_GAL_COPY_NOT_VERIFIED"
+    fi
+    remount_rw
+    rm -f "$GAL.pmcp-new" "$GAL.pmcp-restore" 2>/dev/null
+    if ! matches "$GAL" "$STOCK_GAL_SHA" "$STOCK_GAL_SIZE"; then
+        cp "$ROOT/aa/gal.real" "$GAL.pmcp-restore" && chmod 755 "$GAL.pmcp-restore" || fail "GAL_RESTORE_STAGE_FAILED"
+        check "$GAL.pmcp-restore" "$STOCK_GAL_SHA" "$STOCK_GAL_SIZE" STAGED_FACTORY_GAL
+        mv "$GAL.pmcp-restore" "$GAL" || fail "GAL_RESTORE_FAILED_RUN_AA_REMOVE_AGAIN"
+    fi
+    check "$GAL" "$STOCK_GAL_SHA" "$STOCK_GAL_SIZE" FACTORY_GAL
+    [ -x "$GAL" ] || fail "FACTORY_GAL_NOT_EXECUTABLE"
+    rm -rf "$ROOT/aa" "$ROOT/.aa-new" 2>/dev/null
+    [ ! -e "$ROOT/aa" ] && [ ! -e "$ROOT/.aa-new" ] || fail "AA_DIR_REMOVE_FAILED_RUN_AA_REMOVE_AGAIN"
+    rm -f "$PERSIST"/aa-trial.* "$PERSIST"/aa-ok.* "$PERSIST/aa-capture" "$PERSIST/AA_DISABLED" 2>/dev/null
+}
+
+do_aa_remove() {
+    selftest
+    firmware_identity
+    [ -d "$ROOT" ] || fail "AA_REMOVE_ALREADY_NOT_INSTALLED"
+    aa_exp_present || fail "AA_REMOVE_ALREADY_NOT_INSTALLED"
+    pmcp_root || fail "AA_REMOVE_NOT_A_PMCP_INSTALL"
+    aa_exp_off
+    flush
+    detect_state
+    say "PMCP_AA_REMOVE_OK (factory gal verified; unit state now: $STATE)"
+    say "Restart the unit before connecting an Android phone again."
+}
+
+# RGSYS -> off (factory driver + cfg, no SYSTEM_ON) | on (our driver, cfg, reader, SYSTEM_ON, factory copies kept)
+#        | old (as on, but the driver and/or the reader is an earlier card's, RG_KNOWN: rg-update) | unknown
+# DRV_NEW / RD_NEW (on and old): yes when rg-update has to replace the driver / the reader
 rg_state() {
     set -- `manifest_get RG_DRIVER`; RD_SHA=$1; RD_SIZE=$2
     set -- `manifest_get RG_CFG`; RC_SHA=$1; RC_SIZE=$2
     set -- `manifest_get RG_READER`; RR_SHA=$1; RR_SIZE=$2
+    RGSYS=unknown; DRV_NEW=no; RD_NEW=no
     if [ ! -e "$RGDIR/SYSTEM_ON" ] && matches "$DRV" "$STOCK_DRV_SHA" "$STOCK_DRV_SIZE" && matches "$CFG" "$STOCK_CFG_SHA" "$STOCK_CFG_SIZE"; then
         RGSYS=off
-    elif [ -e "$RGDIR/SYSTEM_ON" ] && matches "$DRV" "$RD_SHA" "$RD_SIZE" && matches "$CFG" "$RC_SHA" "$RC_SIZE" \
-        && matches "$RGDIR/rgi-observer" "$RR_SHA" "$RR_SIZE" \
+    elif [ -e "$RGDIR/SYSTEM_ON" ] && matches "$CFG" "$RC_SHA" "$RC_SIZE" \
         && matches "$ROOT/rollback/ipod-drvr-iap2.so" "$STOCK_DRV_SHA" "$STOCK_DRV_SIZE" \
         && matches "$ROOT/rollback/iap2.cfg" "$STOCK_CFG_SHA" "$STOCK_CFG_SIZE"; then
-        RGSYS=on
-    else
-        RGSYS=unknown
+        if matches "$DRV" "$RD_SHA" "$RD_SIZE"; then :
+        elif rg_known DRIVER "$DRV"; then DRV_NEW=yes
+        else return 0; fi
+        if matches "$RGDIR/rgi-observer" "$RR_SHA" "$RR_SIZE"; then :
+        elif rg_known READER "$RGDIR/rgi-observer"; then RD_NEW=yes
+        else return 0; fi
+        if [ $DRV_NEW = no ] && [ $RD_NEW = no ]; then RGSYS=on; else RGSYS=old; fi
     fi
+    return 0
+}
+
+# rg_known KIND FILE -> 0 when FILE is one of the earlier pmcp files of KIND (DRIVER or READER) listed in RG_KNOWN
+rg_known() {
+    _n_hit=1
+    while read _n_k _n_h _n_s; do
+        [ "$_n_k" = "$1" ] || continue
+        matches "$2" "$_n_h" "$_n_s" && { _n_hit=0; break; }
+    done <<EOF
+$RG_KNOWN
+EOF
+    return $_n_hit
 }
 
 remount_sys() {
@@ -584,17 +697,12 @@ do_java_on() {
     case "$STATE" in VIDEO|JAVA) ;; *) fail "JAVA_NEEDS_STAGE_A_STATE_$STATE" ;; esac
     cur=`current_set`
     [ "$STATE" = VIDEO ] && cur=""
+    [ -z "$JAVA_OLD_SET" ] || fail "JAVA_SET_HAS_OLD_PACKAGES_RUN_JAVA_UPDATE_FIRST"
     case " $cur " in *" $ARG "*) fail "JAVA_PACKAGE_ALREADY_ON_$ARG" ;; esac
-    case "$ARG" in rg|rglu) [ "$RGSYS" = on ] || fail "JAVA_RG_NEEDS_RG_SYSTEM_ON" ;; esac
-    # the alternative package (same classes) leaves the set; its JAR is removed after the new set is active
-    ALT=""; ALTFILE=""
-    for _a in `java_alternative "$ARG"`; do
-        case " $cur " in *" $_a "*) ALT=$_a; ALTFILE=`java_jarfile "$_a"` ;; esac
-    done
+    case "$ARG" in rg) [ "$RGSYS" = on ] || fail "JAVA_RG_NEEDS_RG_SYSTEM_ON_$RGSYS" ;; esac
     # new set in catalog order, so the same packages always give the same set id
     new=""
     for n in `java_catalog | while read a b; do echo $a; done`; do
-        [ -n "$ALT" ] && [ "$n" = "$ALT" ] && continue
         case " $cur $ARG " in *" $n "*) new="$new${new:+ }$n" ;; esac
     done
     set -- `manifest_get "JAR_$ARG"`; J_SHA=$1; J_SIZE=$2; J_PATH=$3
@@ -619,10 +727,6 @@ do_java_on() {
     if [ "$STATE" = VIDEO ]; then
         mv "$LSD.pmcp-new" "$LSD" || fail "LSD_ACTIVATION_FAILED_RUN_RESTORE"
     fi
-    if [ -n "$ALTFILE" ]; then
-        rm -f "$JARS/$ALTFILE" || fail "ALTERNATIVE_JAR_REMOVE_FAILED_RUN_RESTORE"
-        say "  $ALT replaced by $ARG"
-    fi
     rm -f "$PERSIST/DISABLED" 2>/dev/null
     detect_state
     [ "$STATE" = JAVA ] || fail "POST_JAVA_ON_STATE_${STATE}_RUN_RESTORE"
@@ -639,6 +743,7 @@ do_java_off() {
     firmware_identity
     detect_state
     [ "$STATE" = JAVA ] || fail "JAVA_OFF_NEEDS_JAVA_STATE_$STATE"
+    [ -z "$JAVA_OLD_SET" ] || fail "JAVA_SET_HAS_OLD_PACKAGES_RUN_JAVA_UPDATE_FIRST"
     cur=`current_set`
     case " $cur " in *" $ARG "*) ;; *) fail "JAVA_PACKAGE_NOT_ON_$ARG" ;; esac
     new=""
@@ -697,12 +802,82 @@ do_java_retry() {
     say "PMCP_JAVA_RETRY_OK set=$set_id (the next boot is a new trial)"
 }
 
+# java-update: the set holds packages of an earlier card (JAVA_OLD). One new set with this card's packages: each old one
+# becomes its successor (rg, rglu and the experimental rg variants -> rg), the others stay. New JARs have file names no
+# earlier card used, so the old set stays intact until HMI_BOOT switches (one mv); old JARs are removed after it.
+do_java_update() {
+    selftest
+    firmware_identity
+    detect_state
+    # "ALREADY" answers let button 3 skip this step on units without a Java set or already current.
+    case "$STATE" in STOCK|VIDEO) fail "JAVA_UPDATE_ALREADY_NO_JAVA_SET" ;; JAVA) ;; *) fail "JAVA_UPDATE_NEEDS_JAVA_STATE_$STATE" ;; esac
+    if [ -z "$JAVA_OLD_SET" ]; then
+        [ -n "$JAVA_STRAY" ] || fail "JAVA_UPDATE_ALREADY_CURRENT"
+        # only unreferenced JARs left (an interrupted update after its HMI_BOOT switch): remove them, the set stays
+        remount_rw
+        for f in $JAVA_STRAY; do rm -f "$JARS/$f" || fail "STRAY_JAR_REMOVE_FAILED"; done
+        detect_state
+        [ "$STATE" = JAVA ] && [ -z "$JAVA_STRAY" ] || fail "POST_JAVA_UPDATE_STATE_${STATE}_RUN_RESTORE"
+        flush
+        say "PMCP_JAVA_UPDATE_OK set=`boot_set_id` (unused JARs of an interrupted update removed; the set is unchanged)"
+        exit 0
+    fi
+    cur=`current_set`; want=""; oldfiles=""
+    _u_x=`boot_set_id`
+    while :; do
+        _u_part=${_u_x%%+*}; _u_n=${_u_part%-*}
+        set -- `java_old "$_u_n" "${_u_part##*-}"`
+        if [ -n "$1" ]; then
+            want="$want $4"; oldfiles="$oldfiles $3"
+        else
+            want="$want $_u_n"
+        fi
+        [ "$_u_part" = "$_u_x" ] && break
+        _u_x=${_u_x#*+}
+    done
+    case " $want " in *" rg "*) [ "$RGSYS" = on ] || fail "JAVA_UPDATE_NEEDS_RG_SYSTEM_ON_$RGSYS" ;; esac
+    new=""
+    for n in `java_catalog | while read a b; do echo $a; done`; do
+        case " $want " in *" $n "*) new="$new${new:+ }$n" ;; esac
+    done
+    remount_rw
+    rm -f "$ROOT/HMI_BOOT.pmcp-new" 2>/dev/null
+    staged=""
+    for n in $new; do
+        set -- `manifest_get "JAR_$n"`; J_SHA=$1; J_SIZE=$2; J_PATH=$3; J_FILE=${3##*/}
+        matches "$JARS/$J_FILE" "$J_SHA" "$J_SIZE" && continue
+        check "$PAYLOAD/$J_PATH" "$J_SHA" "$J_SIZE" "JAR_$n"
+        rm -f "$JARS/$J_FILE.pmcp-new" 2>/dev/null
+        cp "$PAYLOAD/$J_PATH" "$JARS/$J_FILE.pmcp-new" || fail "JAR_STAGE_FAILED"
+        chmod 644 "$JARS/$J_FILE.pmcp-new" || fail "CHMOD_FAILED"
+        check "$JARS/$J_FILE.pmcp-new" "$J_SHA" "$J_SIZE" "STAGED_JAR_$n"
+        staged="$staged $J_FILE"
+    done
+    stage_set_files "$new"
+    # Order: new JARs (not referenced yet), HMI_BOOT (new set id = a fresh trial boot), then the old JARs go.
+    for f in $staged; do mv "$JARS/$f.pmcp-new" "$JARS/$f" || fail "JAR_ACTIVATION_FAILED_RUN_RESTORE"; done
+    commit_set_files || fail "SET_ACTIVATION_FAILED_RUN_RESTORE"
+    newfiles=`cat "$ROOT/HMI_BOOT"`
+    for f in $oldfiles $JAVA_STRAY; do
+        case " $newfiles " in *" $f "*) continue ;; esac
+        rm -f "$JARS/$f" || fail "OLD_JAR_REMOVE_FAILED_RUN_JAVA_UPDATE_AGAIN"
+    done
+    rm -f "$PERSIST/DISABLED" 2>/dev/null
+    detect_state
+    [ "$STATE" = JAVA ] && [ -z "$JAVA_OLD_SET" ] && [ -z "$JAVA_STRAY" ] || fail "POST_JAVA_UPDATE_STATE_${STATE}_RUN_JAVA_UPDATE_AGAIN"
+    flush
+    say "  was:$want (from: $cur)"
+    say "PMCP_JAVA_UPDATE_OK set=`boot_set_id`"
+    say "Reboot the unit. The first boot is a trial: if everything works, press 4. Confirm in GEM during that boot."
+    say "Without it, or if the screen does not come back (hold the volume knob ~10 s), the next boot is factory."
+}
+
 do_rg_system_on() {
     selftest
     firmware_identity
     detect_state
     case "$STATE" in VIDEO|JAVA) ;; *) fail "RG_SYSTEM_NEEDS_STAGE_A_STATE_$STATE" ;; esac
-    [ "$RGSYS" = off ] || fail "RG_SYSTEM_ALREADY_$RGSYS"
+    case "$RGSYS" in off) ;; on|old) fail "RG_SYSTEM_ALREADY_ON" ;; *) fail "RG_SYSTEM_ALREADY_$RGSYS" ;; esac
     set -- `manifest_get RG_DRIVER`; RD_SHA=$1; RD_SIZE=$2; RD_PATH=$3
     set -- `manifest_get RG_CFG`; RC_SHA=$1; RC_SIZE=$2; RC_PATH=$3
     set -- `manifest_get RG_READER`; RR_SHA=$1; RR_SIZE=$2; RR_PATH=$3
@@ -736,6 +911,43 @@ do_rg_system_on() {
     say "PMCP_RG_SYSTEM_ON_OK (then: Java package rg, full reboot)"
 }
 
+# rg-update: RG is on, but with an earlier card's driver and/or reader (RGSYS=old). Only those two files are replaced
+# (staged, hashed, then mv each); iap2.cfg, SYSTEM_ON and the verified factory copies stay as they are.
+# Idempotent: after an interruption between the two mv, running it again finishes the job.
+do_rg_update() {
+    selftest
+    firmware_identity
+    detect_state
+    # "ALREADY" answers let button 3 skip this step on units without RG or already current.
+    case "$STATE" in STOCK) fail "RG_UPDATE_ALREADY_NOT_INSTALLED" ;; VIDEO|JAVA|PARTIAL) ;; *) fail "RG_UPDATE_NEEDS_PMCP_STATE_$STATE" ;; esac
+    case "$RGSYS" in old) ;; off) fail "RG_UPDATE_ALREADY_NOT_INSTALLED" ;; on) fail "RG_UPDATE_ALREADY_CURRENT" ;; *) fail "RG_UPDATE_UNKNOWN_RG_FILES" ;; esac
+    _u_d=$DRV_NEW; _u_r=$RD_NEW
+    set -- `manifest_get RG_DRIVER`; RD_SHA=$1; RD_SIZE=$2; RD_PATH=$3
+    set -- `manifest_get RG_READER`; RR_SHA=$1; RR_SIZE=$2; RR_PATH=$3
+    check "$PAYLOAD/$RD_PATH" "$RD_SHA" "$RD_SIZE" RG_DRIVER
+    check "$PAYLOAD/$RR_PATH" "$RR_SHA" "$RR_SIZE" RG_READER
+    remount_rw
+    rm -f "$DRV.pmcp-new" "$RGDIR/rgi-observer.pmcp-new" 2>/dev/null
+    say "Staging"
+    if [ $_u_d = yes ]; then
+        cp "$PAYLOAD/$RD_PATH" "$DRV.pmcp-new" && chmod 755 "$DRV.pmcp-new" || fail "DRIVER_STAGE_FAILED"
+        check "$DRV.pmcp-new" "$RD_SHA" "$RD_SIZE" STAGED_DRIVER
+    fi
+    if [ $_u_r = yes ]; then
+        cp "$PAYLOAD/$RR_PATH" "$RGDIR/rgi-observer.pmcp-new" && chmod 755 "$RGDIR/rgi-observer.pmcp-new" || fail "READER_STAGE_FAILED"
+        check "$RGDIR/rgi-observer.pmcp-new" "$RR_SHA" "$RR_SIZE" STAGED_READER
+    fi
+    # The running reader keeps its old image; the new one starts at the next unit start (lsd.sh block).
+    stop_reader
+    if [ $_u_d = yes ]; then mv "$DRV.pmcp-new" "$DRV" || fail "DRIVER_ACTIVATION_FAILED_RUN_RG_UPDATE_AGAIN"; fi
+    if [ $_u_r = yes ]; then mv "$RGDIR/rgi-observer.pmcp-new" "$RGDIR/rgi-observer" || fail "READER_ACTIVATION_FAILED_RUN_RG_UPDATE_AGAIN"; fi
+    rg_state
+    [ "$RGSYS" = on ] || fail "POST_RG_UPDATE_$RGSYS"
+    flush
+    say "  driver: `[ $_u_d = yes ] && echo replaced || echo already current`, reader: `[ $_u_r = yes ] && echo replaced || echo already current`"
+    say "PMCP_RG_UPDATE_OK (full reboot needed; way back: rg-system-off, then rg-system-on from the card you want)"
+}
+
 # put the factory driver and cfg back if needed, remove reader and marker (used by rg-system-off and restore)
 rg_files_off() {
     stop_reader
@@ -764,7 +976,11 @@ do_rg_system_off() {
     firmware_identity
     detect_state
     case "$STATE" in VIDEO|JAVA|PARTIAL) ;; *) fail "RG_SYSTEM_OFF_NEEDS_PMCP_STATE_$STATE" ;; esac
-    case " `current_set` " in *" rg "*|*" rglu "*) [ "$STATE" = JAVA ] && fail "TURN_OFF_JAVA_PACKAGE_RG_FIRST" ;; esac
+    if [ "$STATE" = JAVA ]; then
+        for _y_n in `current_set`; do
+            case "$_y_n" in rg*) fail "TURN_OFF_JAVA_PACKAGE_RG_FIRST" ;; esac
+        done
+    fi
     remount_rw
     rg_files_off
     rg_state
@@ -777,6 +993,11 @@ do_rg_system_off() {
 do_restore() {
     selftest
     firmware_identity
+    # an experimental card's Android Auto goes first (its factory gal copy lives in carplaymaps, removed below)
+    if [ -d "$ROOT" ] && aa_exp_present && pmcp_root; then
+        say "Android Auto of an experimental card: taking it off first"
+        aa_exp_off
+    fi
     detect_state
     case "$STATE" in
         VIDEO|JAVA|PARTIAL) ;;
@@ -798,7 +1019,7 @@ do_restore() {
         check "$DIO.pmcp-restore" "$STOCK_DIO_SHA" "$STOCK_DIO_SIZE" STAGED_FACTORY_DIO
         mv "$DIO.pmcp-restore" "$DIO" || fail "DIO_RESTORE_FAILED"
     fi
-    for f in `java_catalog | while read n j; do echo $j; done`; do
+    for f in `java_catalog | while read n j; do echo $j; done` `echo "$JAVA_OLD" | while read a b c j d; do echo $j; done`; do
         rm -f "$JARS/$f" "$JARS/$f.pmcp-new" || fail "JAR_REMOVE_FAILED"
     done
     rm -f "$LSD.pmcp-new" "$DIO.pmcp-new" "$LSD.pmcp-rb" "$DIO.pmcp-rb" 2>/dev/null
@@ -825,7 +1046,10 @@ do_status() {
     [ -n "$STATE_WHY" ] && say "  $STATE_WHY"
     [ -s "$ROOT/PMCP_VERSION" ] && say "Installed: `cat "$ROOT/PMCP_VERSION"` variant `cat "$ROOT/VARIANT" 2>/dev/null`"
     [ "$STATE" = JAVA ] && say "Java set: `boot_set_id`"
+    [ -n "$JAVA_OLD_SET" ] && say "  packages of an earlier card: $JAVA_OLD_SET (button 3 or Java update replaces them)"
+    [ -n "$JAVA_STRAY" ] && say "  unused JAR files (not loaded): $JAVA_STRAY (button 3 or Java update removes them)"
     say "Route guidance system: $RGSYS"
+    [ "$RGSYS" = old ] && say "  driver or reader of an earlier card (button 3 or Route guidance update replaces them)"
     if [ -d "$PERSIST" ]; then
         say "Trial markers: `ls "$PERSIST" 2>/dev/null`"
         [ -s "$PERSIST/last-boot" ] && say "This boot: `cat "$PERSIST/last-boot"`"
@@ -848,6 +1072,9 @@ case "$ACTION" in
     java-confirm) do_java_confirm ;;
     rg-system-on)  do_rg_system_on ;;
     rg-system-off) do_rg_system_off ;;
+    rg-update)     do_rg_update ;;
+    java-update)   do_java_update ;;
+    aa-remove)     do_aa_remove ;;
     restore)    do_restore ;;
     status)     do_status ;;
     *) fail "UNKNOWN_ACTION_$ACTION" ;;

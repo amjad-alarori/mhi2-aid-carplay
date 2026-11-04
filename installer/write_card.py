@@ -9,7 +9,7 @@ SRC is build/card1-install (manifest PMCP_CARD_MANIFEST.txt) or build/card2-resc
 Rules:
   - nothing on the card is ever deleted or formatted; only files listed in the manifest are written;
   - install card: the card is empty, or holds exactly the M.I.B. 3.6.0 tree (a backup/ folder of the unit may
-    stay next to it and is never touched); a card with pmcp/, pmcp-ratunek/ or an armed Swdlautorun.txt is refused;
+    stay next to it and is never touched); a card with pmcp/, pmcp-rescue/ (pmcp-ratunek/ before v1.4) or an armed Swdlautorun.txt is refused;
   - rescue card: the card must be empty, and the armed Swdlautorun.txt is written last, so a card that was pulled
     half-way never starts by itself;
   - every file is written to a temporary name, fsync'd and renamed; AppleDouble "._" files that macOS adds next to
@@ -91,7 +91,8 @@ def check(kind, src, card):
         say("  ok: card is empty")
         return ver, ent, ent
     # install card
-    for bad in ("Swdlautorun.txt", "pmcp", "pmcp-ratunek", "PMCP_RATUNEK_README.txt", "PMCP_CARD_MANIFEST.txt"):
+    for bad in ("Swdlautorun.txt", "pmcp", "pmcp-rescue", "PMCP_RESCUE_README.txt", "pmcp-ratunek", "PMCP_RATUNEK_README.txt",
+                "PMCP_CARD_MANIFEST.txt"):
         if (card / bad).exists():
             stop("the card already holds %s. Use an empty card, or a card with only M.I.B. 3.6.0 on it." % bad)
     if not present:

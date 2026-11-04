@@ -46,11 +46,12 @@ rearm_flow() {
     say ""
     wait_card PMCP_RESCUE_MANIFEST.txt "CARD 2 (RESCUE)"
     say "    card: $(basename "$VOL")"
-    if [ -f "$VOL/PMCP_RATUNEK_LOG.txt" ]; then
-        say "    result of its last run (end of PMCP_RATUNEK_LOG.txt):"
-        tail -n 4 "$VOL/PMCP_RATUNEK_LOG.txt" | tr -d '\r' | sed 's/^/      | /'
-        if grep -q 'WYNIK=OK' "$VOL/PMCP_RATUNEK_LOG.txt"; then ok "the rescue card worked (WYNIK=OK = result OK)"
-        else say "  [WARN] no WYNIK=OK in the log: the last run did not finish cleanly. Keep the log and ask for help."; fi
+    RLOG="$VOL/PMCP_RESCUE_LOG.txt"; [ -f "$RLOG" ] || RLOG="$VOL/PMCP_RATUNEK_LOG.txt"   # before v1.4: Polish name
+    if [ -f "$RLOG" ]; then
+        say "    result of its last run (end of ${RLOG##*/}):"
+        tail -n 4 "$RLOG" | tr -d '\r' | sed 's/^/      | /'
+        if grep -q 'RESULT=OK\|WYNIK=OK' "$RLOG"; then ok "the rescue card worked (RESULT=OK)"
+        else say "  [WARN] no RESULT=OK in the log: the last run did not finish cleanly. Keep the log and ask for help."; fi
     fi
     if [ -f "$VOL/Swdlautorun.txt" ]; then
         ok "the rescue card is already armed"

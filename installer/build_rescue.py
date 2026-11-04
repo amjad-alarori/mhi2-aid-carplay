@@ -6,7 +6,7 @@
 Output = the M.I.B. 3.6.0 tree exactly as in the zip, with three changes:
   - _Swdlautorun.txt renamed to Swdlautorun.txt (armed: the unit enters update mode by itself);
   - Launcher/stuff.sh: our rescue runs first and saves its log last; M.I.B.'s own lines are unchanged;
-  - pmcp-ratunek/pmcp-ratunek.sh added, plus PMCP_RATUNEK_README.txt.
+  - pmcp-rescue/pmcp-rescue.sh added, plus PMCP_RESCUE_README.txt.
 metainfo2.txt and Launcher/final/finalScript.sh (SHA1 checked by metainfo2) stay untouched; stuff.sh is
 outside metainfo2's reach (M.I.B.'s own comment in stuff.sh). The card carries no pmcp installer.
 """
@@ -24,16 +24,16 @@ PREFIX = "M.I.B._More-Incredible-Bash-3.6.0/"
 STUFF_SHA = "bac7f77c6b267f438a57d1dca92550d9ead0e4ad5b4c8505e480b180e0096964"
 FINAL_SHA1 = "ba391875e14a8794b683cc02556990fcb555fe08"
 
-STUFF_HEAD = """# >>> pmcp rescue card: undo our HMI start changes first, without any redirect (see pmcp-ratunek.sh)
-if [ -f ${2}/pmcp-ratunek/pmcp-ratunek.sh ]; then
-\t/bin/ksh ${2}/pmcp-ratunek/pmcp-ratunek.sh ${1} ${2}
+STUFF_HEAD = """# >>> pmcp rescue card: undo our HMI start changes first, without any redirect (see pmcp-rescue.sh)
+if [ -f ${2}/pmcp-rescue/pmcp-rescue.sh ]; then
+\t/bin/ksh ${2}/pmcp-rescue/pmcp-rescue.sh ${1} ${2}
 fi
 # <<< pmcp
 """
 STUFF_TAIL = """
 # >>> pmcp rescue card: the card is writable now (M.I.B. remounted it), move the RAM log there
-if [ -f ${2}/pmcp-ratunek/pmcp-ratunek.sh ]; then
-\t/bin/ksh ${2}/pmcp-ratunek/pmcp-ratunek.sh --save-log ${2}
+if [ -f ${2}/pmcp-rescue/pmcp-rescue.sh ]; then
+\t/bin/ksh ${2}/pmcp-rescue/pmcp-rescue.sh --save-log ${2}
 fi
 # <<< pmcp
 """
@@ -54,8 +54,8 @@ What it does: insert it in slot SD1 and wait up to 60 s. The unit enters update 
 The map picture stays. Afterwards, in the green menu: "Remove everything (back to factory files)".
 The unit also re-installs M.I.B. 3.6.0 on the way, as when M.I.B. was installed.
 
-When the normal screen is back: remove the card. Its result is in PMCP_RATUNEK_LOG.txt on this
-card ("WYNIK=OK" = result OK).
+When the normal screen is back: remove the card. Its result is in PMCP_RESCUE_LOG.txt on this
+card ("RESULT=OK").
 
 After each use M.I.B. disarms the card (Swdlautorun.txt -> _Swdlautorun.txt), so it cannot loop.
 To re-arm it: on a computer run the copy helper and choose 3, or rename _Swdlautorun.txt back to
@@ -101,9 +101,9 @@ def main():
     if not arm.exists() or (out / "Swdlautorun.txt").exists():
         sys.exit("unexpected autorun files in the zip")
     arm.rename(out / "Swdlautorun.txt")
-    (out / "pmcp-ratunek").mkdir()
-    (out / "pmcp-ratunek/pmcp-ratunek.sh").write_bytes((HERE / "rescue/pmcp-ratunek.sh").read_bytes())
-    (out / "PMCP_RATUNEK_README.txt").write_text(README)
+    (out / "pmcp-rescue").mkdir()
+    (out / "pmcp-rescue/pmcp-rescue.sh").write_bytes((HERE / "rescue/pmcp-rescue.sh").read_bytes())
+    (out / "PMCP_RESCUE_README.txt").write_text(README)
     if (out / "pmcp").exists():
         sys.exit("rescue card must not contain the pmcp installer")
     lines = []
@@ -113,7 +113,7 @@ def main():
     (out / "PMCP_RESCUE_MANIFEST.txt").write_text("\n".join(lines) + "\n")
     print("files:", len(lines))
     for l in lines:
-        if any(k in l for k in ("stuff.sh", "pmcp-ratunek", "Swdlautorun", "metainfo2", "finalScript")):
+        if any(k in l for k in ("stuff.sh", "pmcp-rescue", "Swdlautorun", "metainfo2", "finalScript")):
             print(l)
 
 

@@ -18,14 +18,17 @@ import java.util.*;
  * descriptorRouteState and lanesVisible once instead (6 calls with attach/detach).
  * Expected call counts per class are asserted; anything unknown aborts the build.
  *
- * usage: java GuardLive <stockClassesDir> <patchedClassesDir> [base|lanes]
+ * "lanes-asf" (rg/lanes/asf.py): lanes + a 7th class TurnToInfo (road name, Tomasz v1.4.3): turnTo fill
+ * hook, attach, detach, accepted (4 calls); fallback: the stock turn-to text.
+ *
+ * usage: java GuardLive <stockClassesDir> <patchedClassesDir> [base|lanes|lanes-asf]
  */
 public final class GuardLive {
     static final String BASE = "de/vw/mib/bap/mqbab2/navsd/functions/";
     static final String HELPER = "com/cpmap/rgi/LiveBridge";
     static final String NAVSVC = "de/vw/mib/bap/mqbab2/common/api/navigation/NavigationService";
     static final Set<String> FILL = new HashSet<String>(Arrays.asList(
-            "descriptor", "distance", "route", "lanes", "destinationDistance", "destinationTime", "destinationValidity"));
+            "descriptor", "distance", "route", "lanes", "destinationDistance", "destinationTime", "destinationValidity", "turnTo"));
 
     static void expect(boolean ok, String what) {
         if (!ok) throw new IllegalStateException("GuardLive: " + what);
@@ -34,8 +37,12 @@ public final class GuardLive {
     public static void main(String[] a) throws Exception {
         Path stock = Paths.get(a[0]), patched = Paths.get(a[1]);
         // calls per class: fill hook + attach + detach (+ accepted, + destinationValidity, + descriptorRouteState)
-        String[] classes = {"ManeuverDescriptor", "DistanceToNextManeuver", "RGStatus", "LaneGuidance", "DistanceToDestination", "TimeToDestination"};
-        int[] want = {5, 4, 4, a.length > 2 && a[2].equals("lanes") ? 6 : 3, 5, 4};
+        boolean asf = a.length > 2 && a[2].equals("lanes-asf");
+        String[] classes = asf
+                ? new String[]{"ManeuverDescriptor", "DistanceToNextManeuver", "RGStatus", "LaneGuidance", "DistanceToDestination", "TimeToDestination", "TurnToInfo"}
+                : new String[]{"ManeuverDescriptor", "DistanceToNextManeuver", "RGStatus", "LaneGuidance", "DistanceToDestination", "TimeToDestination"};
+        int[] want = asf ? new int[]{5, 4, 4, 6, 5, 4, 4}
+                : new int[]{5, 4, 4, a.length > 2 && a[2].equals("lanes") ? 6 : 3, 5, 4};
         expect(stockRouteStateCalls(stock.resolve(BASE + "ManeuverDescriptor.class")) == 1, "stock getRouteGuidanceState call");
         for (int i = 0; i < classes.length; i++) {
             Path p = patched.resolve(BASE + classes[i] + ".class");

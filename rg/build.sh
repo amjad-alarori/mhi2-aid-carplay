@@ -9,14 +9,20 @@
 #
 #   build.sh <converted MU1161 lsd.jar> <work dir> [lanes]
 #
-# "lanes" (not shipped): pmcp-rg.jar additionally carries Tomasz's MU1367 v1.4.0 native lane guidance (rg/lanes/,
-# iAP2 0x5204 -> the factory LaneGuidance builder) and is tested with his TestLanes; driver, cfg and reader are the same.
-# "lanes-uturn" (package rglu, card default since v1.3.0): lanes + rg/lanes/uturn.py on the staged copies (U-turn lanes as VW 114/146).
+# "lanes": pmcp-rg.jar additionally carries Tomasz's MU1367 v1.4.0 native lane guidance (rg/lanes/, iAP2 0x5204 -> the
+# factory LaneGuidance builder) and is tested with his TestLanes; driver, cfg and reader are the same.
+# "lanes-uturn" (v1.3 package rglu): lanes + rg/lanes/uturn.py on the staged copies (U-turn lanes as VW 114/146).
+# "lanes-uturn-asf": lanes-uturn + rg/lanes/asf.py (tomasz-twardzicki MU1367 v1.4.3, git 1d69473: bargraph before the
+# maneuver, current road name in TurnToInfo, FeedRecovery), tested with his TestArrow, TestRoad and TestRecovery.
+# "lanes-uturn-asf-m" (v1.4 package rg, everything): lanes-uturn-asf + rg/lanes/maneuvers.py (arrow fallbacks where the
+# strict mapping shows none: start of route, roundabout turns), tested with TestManeuvers.
 set -euo pipefail
 export PYTHONDONTWRITEBYTECODE=1   # do not write __pycache__ into upstream/tomasz (review 2)
 
 STOCK_JAR=${1:?converted lsd jar}; W=${2:?work dir}; MODE=${3:-base}
-case "$MODE" in base|lanes|lanes-uturn) ;; *) echo "FAIL: third argument must be lanes, lanes-uturn or nothing" >&2; exit 1 ;; esac
+case "$MODE" in base|lanes|lanes-uturn|lanes-uturn-asf|lanes-uturn-asf-m) ;; *) echo "FAIL: third argument must be lanes, lanes-uturn, lanes-uturn-asf, lanes-uturn-asf-m or nothing" >&2; exit 1 ;; esac
+ASF=no; case "$MODE" in *-asf|*-asf-m) ASF=yes ;; esac
+MAN=no; case "$MODE" in *-asf-m) MAN=yes ;; esac
 H=$(cd "$(dirname "$0")" && pwd)
 BT="$H/../buildtools"     # Guard (try/catch around every hook call), RefCheck (J9 API check)
 REPO=$(cd "$H/../.." && pwd)
@@ -47,6 +53,15 @@ pin "$REL/rgi-observer" b683cef78828bfab2b8cdf43e4ea82e5d7c16d0d47730936d936e82a
 pin "$H/lanes/stage.py" 9d0eedcf4aed321b7add9673624c9317059b400d0760aa48e88d2c2f4ce06243
 pin "$H/lanes/LaneData.java" c8cc876bea7609e41d66686b081c878ea9c2efb173625aa9d64b90972cf48f0c
 pin "$H/lanes/TestLanes.java" 0a9d1a2ac6dc8aef6f3b1172ffe4e195d40ff6efc9ebe1d4611be2870427b760
+if [ $ASF = yes ]; then
+    # Tomasz's MU1367 v1.4.3 (git 1d69473) files, copied unchanged into rg/lanes/
+    pin "$H/lanes/FeedRecovery.java" dffe76c5a6c8a92b4ee6a4ef99318c19d21ea66e47220ee5308e1289f2925d29   # src/guidance
+    pin "$H/lanes/ArrowProgress.java" c77491b1fc2f02b88ca01dcb5f257a12e7af6f130d25353d647f35c4c6278452  # src/guidance
+    pin "$H/lanes/RoadName.java" 311d65c480d6e19998a3c240ce6cf64b302adce7867baa19c3b69b79bc93f6b5       # src/guidance
+    pin "$H/lanes/TestArrow.java" 9ed8fdc1c9272c04dde7d55e94d1c395588804a256254e473546754a7c07faf9      # tests/java
+    pin "$H/lanes/TestRoad.java" fb9bac915fdf1ec1263ada4c6dd576e73c4e646fc42413175540a32c3e189984       # tests/java
+    pin "$H/lanes/TestRecovery.java" ef41df9c6b048cc66730acd8a10fda3e8414f30bb457d0a55723c9afd9e5b703   # tests/java
+fi
 pin "$REL/driver/ipod-drvr-iap2.so" 3760797aed4886a6c4480e3a8de79be427a3d8587450a56c424721306ca15d8b
 pin "$BK/MU1161-appimg/armle/lib/dll/ipod-drvr-iap2.so" 7149a3e75b1b19e89021841759f420a6eced456b6c697a3dd1f0e436abea0b8c
 pin "$BK/MU1161-system/mm/iap2.cfg" 1539c79dd415eddeb59ea215c7a9b0ec4be3632fe066be3aefdff11bd19cdf37
@@ -62,14 +77,25 @@ if [ "$MODE" != base ]; then
     LB=$(python3 -I "$H/lanes/apply_lanes.py" "$T" "$W/lanes" | tail -1)
     [ -f "$LB/LaneData.java" ] && [ -f "$LB/PatchLive.java" ] || fail "lane sources not staged"
     EXTRA="$LB/LaneData.java"; ID=pmcp-mu1161-rg-lanes-1; WHAT="Tomasz MU1427 v1.2.0 port + MU1367 v1.4.0 lanes"
-    if [ "$MODE" = lanes-uturn ]; then
+    if [ "$MODE" != lanes ]; then
         python3 -I "$H/lanes/uturn.py" "$LB" "$H/lanes/TestLanes.java" || fail "uturn.py"
         TL="$LB/TestLanes.java"; ID=pmcp-mu1161-rg-lanes-2; WHAT="$WHAT + VW U-turn lanes"
+    fi
+    if [ $ASF = yes ]; then
+        python3 -I "$H/lanes/asf.py" "$LB" "$H/lanes" || fail "asf.py"
+        EXTRA="$EXTRA $LB/FeedRecovery.java $LB/ArrowProgress.java $LB/RoadName.java"
+        ID=pmcp-mu1161-rg-lanes-asf-1; WHAT="$WHAT + MU1367 v1.4.3 bargraph, road name, feed recovery"
+    fi
+    if [ $MAN = yes ]; then
+        python3 -I "$H/lanes/maneuvers.py" "$LB" "$H/lanes" || fail "maneuvers.py"
+        ID=pmcp-mu1161-rg-lanes-asfm-1; WHAT="$WHAT + harman-f maneuver fallbacks"
     fi
 fi
 
 # ---- HMI JAR -------------------------------------------------------------------------------------------
-(cd "$W/stock" && for c in ManeuverDescriptor DistanceToNextManeuver RGStatus LaneGuidance DistanceToDestination TimeToDestination; do
+CLASSES="ManeuverDescriptor DistanceToNextManeuver RGStatus LaneGuidance DistanceToDestination TimeToDestination"
+[ $ASF = no ] || CLASSES="$CLASSES TurnToInfo"
+(cd "$W/stock" && for c in $CLASSES; do
     unzip -q "$STOCK_JAR" "$NAV/$c.class"; done)
 echo 'package com.cpmap.rgi; public final class BuildInfo { public static final String ID="'"$ID"'"; public static final boolean RELEASE=true; }' > "$W/generated/BuildInfo.java"
 javac --release 8 -nowarn -cp "$STOCK_JAR" -d "$W/helpers" \
@@ -77,7 +103,8 @@ javac --release 8 -nowarn -cp "$STOCK_JAR" -d "$W/helpers" \
 javac -nowarn -cp "$CP" -d "$W/patcher" "$LB/PatchLive.java" "$H/patcher/GuardLive.java" "$BT/Guard.java" "$BT/RefCheck.java" \
     "$H/../hmiextras/patcher/Verify.java"
 java -cp "$W/patcher:$CP" PatchLive "$W/stock" "$W/helpers" "$W/patched"
-java -cp "$W/patcher:$CP" GuardLive "$W/stock" "$W/patched" "${MODE%-uturn}"   # lanes-uturn: same classes as lanes
+G="${MODE%-uturn}"; [ $ASF = no ] || G=lanes-asf   # lanes-uturn: same classes as lanes
+java -cp "$W/patcher:$CP" GuardLive "$W/stock" "$W/patched" "$G"
 java -cp "$W/patcher:$CP" Verify "$W/patched" "$STOCK_JAR" $(find "$W/patched" -name '*.class' | sort)
 for f in $(find "$W/patched" -name '*.class'); do [ "$(xxd -s 6 -l 2 -p "$f")" = 002e ] || fail "class version not 46: $f"; done
 for f in $(cd "$W/helpers" && find . -name '*.class'); do [ -f "$W/patched/$f" ] || fail "helper class not packaged: $f"; done
@@ -93,7 +120,9 @@ with zipfile.ZipFile(dst, 'w') as z:
     for f in files: add(z, f, open(os.path.join(src, f), 'rb').read())
 EOF
 java -cp "$W/patcher:$CP" RefCheck "$STOCK_JAR" "$W/pmcp-rg.jar"
-javac -nowarn -cp "$W/patched:$STOCK_JAR" -d "$W/tests" "$LB/TestLive.java" ${EXTRA:+"$TL"}
+javac -nowarn -cp "$W/patched:$STOCK_JAR" -d "$W/tests" "$LB/TestLive.java" ${EXTRA:+"$TL"} \
+    $([ $ASF = yes ] && echo "$LB/TestArrow.java $LB/TestRoad.java $LB/TestRecovery.java") \
+    $([ $MAN = yes ] && echo "$LB/TestManeuvers.java")
 java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestLive > "$W/tests/result.json" || { cat "$W/tests/result.json"; fail "TestLive"; }
 cat "$W/tests/result.json"; echo
 if [ "$MODE" != base ]; then
@@ -101,7 +130,19 @@ if [ "$MODE" != base ]; then
     java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestLanes > "$W/tests/lanes.txt" || { cat "$W/tests/lanes.txt"; fail "TestLanes"; }
     grep -q '^LANES_PASS ' "$W/tests/lanes.txt" || fail "TestLanes: no LANES_PASS"; cat "$W/tests/lanes.txt"
 fi
-for c in ManeuverDescriptor DistanceToNextManeuver RGStatus LaneGuidance DistanceToDestination TimeToDestination; do
+if [ $ASF = yes ]; then
+    java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestArrow > "$W/tests/arrow.txt" || { cat "$W/tests/arrow.txt"; fail "TestArrow"; }
+    grep -q '^ARROW_PROGRESS_PASS ' "$W/tests/arrow.txt" || fail "TestArrow: no ARROW_PROGRESS_PASS"; cat "$W/tests/arrow.txt"
+    java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestRoad > "$W/tests/road.txt" || { cat "$W/tests/road.txt"; fail "TestRoad"; }
+    grep -q '^ROAD_NAME_PASS ' "$W/tests/road.txt" || fail "TestRoad: no ROAD_NAME_PASS"; cat "$W/tests/road.txt"
+    java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestRecovery "$W/tests/recovery" > "$W/tests/recovery.txt" || { cat "$W/tests/recovery.txt"; fail "TestRecovery"; }
+    grep -q '^RECOVERY_PASS ' "$W/tests/recovery.txt" || fail "TestRecovery: no RECOVERY_PASS"; cat "$W/tests/recovery.txt"
+fi
+if [ $MAN = yes ]; then
+    java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestManeuvers > "$W/tests/maneuvers.txt" || { cat "$W/tests/maneuvers.txt"; fail "TestManeuvers"; }
+    grep -q '^MANEUVERS_PASS ' "$W/tests/maneuvers.txt" || fail "TestManeuvers: no MANEUVERS_PASS"; cat "$W/tests/maneuvers.txt"
+fi
+for c in $CLASSES; do
     norm() { sed -E "s/#[0-9]+(, *[0-9]+)?//; s#$NAV/$c\\.##g; s/^ *[0-9]+: //; s/[[:space:]]+/ /g"; }
     javap -p -c -constants -cp "$W/stock" "${NAV//\//.}.$c" | norm > "$W/report/$c.stock.txt"
     javap -p -c -constants -cp "$W/pmcp-rg.jar:$STOCK_JAR" "${NAV//\//.}.$c" | norm > "$W/report/$c.patched.txt"
@@ -135,8 +176,28 @@ EOF
 cp "$BK/MU1161-system/mm/iap2.cfg" "$W/iap2.cfg"
 printf '# pmcp route guidance (tomasz-twardzicki MU1427 B1 identification)\n[ident]\nsendmsgs=0x5200,0x5203\nrecvmsgs=0x5201,0x5202,0x5204\n' >> "$W/iap2.cfg"
 cp "$REL/rgi-observer" "$W/rgi-observer"
+# pmcp reader pmcp-r1 (rg/reader/reader.c, survives a stuck driver read), prebuilt in the repository so no QNX toolchain is
+# needed; rg/reader/build.sh rebuilds it in docker
+pin "$H/reader/prebuilt/rgi-observer" 3166df9b91119475f93043ac8c150e2641732e602161839a137a1907d4ef11df
+cp "$H/reader/prebuilt/rgi-observer" "$W/rgi-observer-pmcp"
+
+# ---- pmcp driver variant: Tomasz's RGI receive log only with /dev/shmem/pmcp-rgi-debug -----------
+# rg/driver/log-gate.S assembled at 0xb571c, appended to the injected segment; one branch moved. The 76 assembled bytes are
+# in the repository (rg/driver/log-gate.bin, pinned), so no QNX toolchain is needed; PMCP_GATE_REBUILD=1 assembles them
+# again in docker (rg/driver/build-gate.sh) and must give the same bytes.
+if [ "${PMCP_GATE:-1}" = 1 ]; then
+    mkdir -p "$W/driver/gate"
+    if [ "${PMCP_GATE_REBUILD:-0}" = 1 ]; then
+        "$H/driver/build-gate.sh" "$W/driver/gate" > "$W/driver/gate/build.txt" 2>&1 || { cat "$W/driver/gate/build.txt"; fail "log gate build"; }
+    else
+        cp "$H/driver/log-gate.bin" "$W/driver/gate/log-gate.bin"
+    fi
+    pin "$W/driver/gate/log-gate.bin" c0c553567165efbfb3ccf63592ab3a7c8afe910a3ba4a5dcb85509820cebfc55
+    python3 -I "$H/driver/patch-log-gate.py" "$W/ipod-drvr-iap2.so" "$W/driver/gate/log-gate.bin" "$W/ipod-drvr-iap2-gated.so"
+    pin "$W/ipod-drvr-iap2-gated.so" 519ea3c5ba08427ea20d62817747af390ac7256bad447da5fcfda388d10b9ed3
+fi
 
 {
-    for f in pmcp-rg.jar ipod-drvr-iap2.so iap2.cfg rgi-observer; do echo "$f $(sha "$W/$f") $(wc -c < "$W/$f" | tr -d ' ')"; done
+    for f in pmcp-rg.jar ipod-drvr-iap2.so iap2.cfg rgi-observer ipod-drvr-iap2-gated.so rgi-observer-pmcp; do [ -f "$W/$f" ] || continue; echo "$f $(sha "$W/$f") $(wc -c < "$W/$f" | tr -d ' ')"; done
 } | tee "$W/manifest.txt"
 echo "built $W"

@@ -6,8 +6,8 @@ English version: README-FIRST.txt
 
 CO TO ROBI
   Pokazuje mapę CarPlay (Apple Maps, Google Maps) na 12,3" cyfrowym liczniku (AID),
-  z natywnymi strzałkami skrętu VW, dystansem i godziną przyjazdu, zoomem mapy z kierownicy
-  i tytułem bieżącego utworu.
+  z natywnymi strzałkami skrętu VW, pasami ruchu, paskiem odległości, nazwą ulicy i godziną
+  przyjazdu, zoomem mapy z kierownicy i tytułem bieżącego utworu.
 
 DLA KOGO
   Tylko dla tego zestawu (sprawdzone na jednym aucie):
@@ -84,15 +84,15 @@ CZĘŚĆ 2 - W AUCIE
     "Zapomnij to auto", potem podłącz ponownie. Dalej nic: nie przechodź do kroku 3.
 
   Krok 3. Instalacja reszty (tylko jeśli mapa działa)
-    Zielone menu -> pmcp_CarPlay_AID -> "3. Install all features or update: main map, arrows, lanes, ...".
-    (Masz już zainstalowaną wcześniejszą wersję? Wystarczy ten krok i krok 4: przycisk pomija to,
-    co już jest zrobione, i aktualizuje resztę.)
+    Zielone menu -> pmcp_CarPlay_AID -> "3. Install all features or update: map, route guidance, ...".
+    (Masz już zainstalowaną wcześniejszą wersję? Zobacz AKTUALIZACJA niżej.)
     Oczekiwane:  PMCP_ALL_ON_OK
     Restart (pokrętło głośności 10 s). Ten start jest PRÓBNY.
 
   Krok 4. Test, potem potwierdzenie
     Sprawdź: CarPlay się łączy, mapa jest na liczniku, a podczas nawigacji pojawia się
-    strzałka skrętu VW, dystans i godzina przyjazdu (strzałka pokazuje się, gdy auto ruszy).
+    strzałka skrętu VW, dystans i godzina przyjazdu (strzałka pokazuje się, gdy auto ruszy),
+    a do tego pasy ruchu, pasek odległości przed skrętem i nazwa ulicy.
       - Wszystko działa: otwórz zielone menu i naciśnij "4. Confirm: everything works"
         W TYM SAMYM STARCIE (nie wyłączaj auta przed tym).
       - Coś jest nie tak albo ekran zostaje czarny: po prostu zrób restart
@@ -104,6 +104,18 @@ CZĘŚĆ 2 - W AUCIE
 
   Żeby usunąć wszystko: "Remove everything (back to factory files)", potem restart.
   "Status (read-only)" pokazuje, co jest zainstalowane.
+
+  AKTUALIZACJA z wcześniejszej wersji (v1.0 - v1.3):
+    1. Zrób KARTĘ 1 z tej paczki. W aucie: "1. Check card and unit (read-only)".
+       Oczekiwane: PMCP_VERIFY_OK state=JAVA. "Status (read-only)" może pokazać
+       "Route guidance system: old" i "packages of an earlier card: rglu" - tak ma być.
+    2. "3. Install all features or update: ..."  ->  PMCP_ALL_ON_OK
+    3. Restart: ten start jest PRÓBNY. Sprawdź strzałki, pasy, nazwę ulicy.
+    4. "4. Confirm: everything works" w tym samym starcie, potem restart.
+    5. Zrób NOWĄ KARTĘ 2 pomocnikiem kopiowania (opcja 2): karty ratunkowe sprzed v1.4
+       nie przywracają nowego sterownika prowadzenia.
+    Używałeś karty eksperymentalnej z Android Auto? Krok 1 pokaże wtedy stan UNKNOWN; tak
+    ma być. Przycisk 3 najpierw przywraca fabryczne Android Auto, potem aktualizuje resztę.
 
 ------------------------------------------------------------------------------------------
 AWARIA - KARTA 2 (RATUNKOWA)
@@ -118,10 +130,10 @@ AWARIA - KARTA 2 (RATUNKOWA)
        cofnąć też mapę.
     3. Karta po użyciu sama się rozbraja, więc nie uruchomi się ponownie przypadkiem. Żeby
        przygotować ją na następny raz: na komputerze uruchom pomocnika kopiowania i wybierz 3
-       (pokazuje też wynik przebiegu; WYNIK=OK = wynik OK).
+       (pokazuje też wynik przebiegu; RESULT=OK = zadziałała).
   Opcjonalnie: przed krokiem 1 możesz raz sprawdzić KARTĘ 2 na działającym radiu. W radiu
   bez naszych plików niczego nie zmienia. Potem uzbrój ją ponownie pomocnikiem kopiowania,
   opcja 3.
 
-  Pojedyncze funkcje i inne układy mapy są w podmenu  pmcp_advanced  (polskie napisy,
+  Pojedyncze funkcje i inne układy mapy są w podmenu  pmcp_advanced  (napisy po angielsku,
   opisane w docs/tutorial-w-aucie.pl.md).

@@ -45,13 +45,14 @@ function RearmFlow {
     Say ""
     $r = WaitCard 'PMCP_RESCUE_MANIFEST.txt' 'CARD 2 (RESCUE)'
     Say ("    card: " + $r)
-    $rlog = Join-Path $r 'PMCP_RATUNEK_LOG.txt'
+    $rlog = Join-Path $r 'PMCP_RESCUE_LOG.txt'
+    if (-not (Test-Path -LiteralPath $rlog)) { $rlog = Join-Path $r 'PMCP_RATUNEK_LOG.txt' }   # before v1.4: Polish name
     if (Test-Path -LiteralPath $rlog) {
         $lines = @([System.IO.File]::ReadAllLines($rlog) | ForEach-Object { $_.TrimEnd() } | Where-Object { $_ -ne '' })
-        Say "    result of its last run (end of PMCP_RATUNEK_LOG.txt):"
+        Say ("    result of its last run (end of " + (Split-Path -Leaf $rlog) + "):")
         $lines | Select-Object -Last 4 | ForEach-Object { Say ("      | " + $_) }
-        if (@($lines | Where-Object { $_ -like '*WYNIK=OK*' }).Count -gt 0) { Ok "the rescue card worked (WYNIK=OK = result OK)" }
-        else { Write-Host "  [WARN] no WYNIK=OK in the log: the last run did not finish cleanly. Keep the log and ask for help." -ForegroundColor Yellow }
+        if (@($lines | Where-Object { $_ -like '*RESULT=OK*' -or $_ -like '*WYNIK=OK*' }).Count -gt 0) { Ok "the rescue card worked (RESULT=OK)" }
+        else { Write-Host "  [WARN] no RESULT=OK in the log: the last run did not finish cleanly. Keep the log and ask for help." -ForegroundColor Yellow }
     }
     $off = Join-Path $r '_Swdlautorun.txt'; $on = Join-Path $r 'Swdlautorun.txt'
     if (Test-Path -LiteralPath $on) {

@@ -416,10 +416,8 @@ run "core.so map layout variants (from the pinned omonob base)" python3 -I "$PRO
 run_long "NavActiveIgnore.jar" bash "$PROJ/navactiveignore/build.sh" MU1161 "$LSD_JAR" "$BUILD/nai-mu1161-v2"
 run_long "pmcp-np.jar (track title and artist)" bash "$PROJ/nowplaying/build.sh" "$LSD_JAR" "$BUILD/np-mu1161-v2"
 run_long "pmcp-zoom.jar and pmcp-dn.jar (zoom, day/night)" bash "$PROJ/hmiextras/build.sh" "$LSD_JAR" "$BUILD/extras-mu1161-v2"
-run_long "route guidance (pmcp-rg.jar, iAP2 driver, iap2.cfg, reader)" bash "$PROJ/rg/build.sh" "$LSD_JAR" "$BUILD/rg-mu1161"
-run_long "route guidance with lanes and U-turn lanes (pmcp-rglu.jar)" bash "$PROJ/rg/build.sh" "$LSD_JAR" "$BUILD/rg-mu1161-lanes-uturn" lanes-uturn
-mkdir -p "$BUILD/rg-mu1161-v2"
-cp "$BUILD/rg-mu1161/pmcp-rg.jar" "$BUILD/rg-mu1161-v2/pmcp-rg.jar"
+run_long "route guidance (pmcp-rg.jar with lanes, distance bar, street and maneuver fallbacks; iAP2 driver, iap2.cfg, reader)" \
+    bash "$PROJ/rg/build.sh" "$LSD_JAR" "$BUILD/rg-mu1161-lanes-uturn-asf-m" lanes-uturn-asf-m
 ok "all components built"
 
 # ---- 8. installer and card folders ------------------------------------------------------------------------------
@@ -528,8 +526,7 @@ Cards
   card 2 (rescue) : contents of build/card2-rescue   -> starts by itself; keep it OUT of the car until needed
   Only one card in the unit at a time, always slot SD1. Power: charger or engine running. Ignition ON.
 
-The main screen is in English. The submenu pmcp_advanced is in Polish (see the in-car guide).
-On the rescue card log: WYNIK=OK = result OK, RATUNEK = rescue, koniec = end
+On the rescue card log (PMCP_RESCUE_LOG.txt): RESULT=OK = the rescue worked
 
 In the car, one visit, card 1 only (photograph the screen after every action):
   1. Card 1 in SD1. Hold MENU ~10 s -> =>M.I.B.<= -> pmcp_CarPlay_AID. Header = $VERSION.

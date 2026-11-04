@@ -14,7 +14,7 @@ This repository holds only what is specific to this head unit. It builds on the 
 > P4512. Every installer step checks file hashes and stops on any mismatch, but you use this at your own risk. Never
 > cross-flash firmware to make it fit. Not affiliated with Volkswagen, Harman or Apple.
 
-## What works (tested in the car, October 2026)
+## What works (tested in the car, October and November 2026)
 
 | Feature | Status |
 |---|---|
@@ -22,13 +22,29 @@ This repository holds only what is specific to this head unit. It builds on the 
 | NavActiveIgnore: the head unit no longer stops or blocks phone navigation | works |
 | Native VW guidance from the iPhone: distance and time to destination on the VW bar and in the left dial | works |
 | Native turn arrow and distance to the manoeuvre (appears once the car moves) | works |
+| Arrow at the start of a route and at roundabout turns (fallback where the strict mapping gives none) | works |
+| Distance bar before the manoeuvre (VW countdown bargraph) and the current street name | works |
 | Native VW lane guidance, including U-turn lanes (when the phone app sends lanes) | works |
+| Guidance feed survives a stuck iAP2 driver read (the reader restarts its worker instead of ending) | in the car since 2026-11-03; recovery tested on the host |
 | Map zoom with the steering-wheel arrows | works |
 | CarPlay track title and artist on the AID | works |
 | Day/night switching of the cluster map | works |
 | Speed limit from the phone (`showSpeedLimit=yes`) | shows nothing on this unit |
 
+iAP2 route guidance carries no numeric speed limit (research by
+[maxim-smirnov/mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster) on iOS 26.6/27);
+`showSpeedLimit=yes` only asks the phone to draw a sign into the video, and no sign was seen on this unit.
+
 ![Map without active navigation](docs/img/aid-carplay-2026-10/IMG_1102.jpg)
+
+v1.4 in the car (2026-11-04), Apple Maps with native VW guidance: the street name in the top bar and in the right dial,
+the turn arrow with the VW distance bar counting down to the maneuver, time and distance to the destination, and VW lane
+guidance (second photo). The speed-limit sign at the top comes from the car itself (VW traffic sign recognition and
+navigation data), not from the phone.
+
+| | |
+|---|---|
+| ![Turn arrow with the distance bar at 40 m and the street name](docs/img/aid-carplay-2026-11/IMG_1283.jpg) | ![Lane guidance and a turn arrow at 20 m](docs/img/aid-carplay-2026-11/IMG_1287.jpg) |
 
 More photos and an interactive model of the AID frame (where the video lands on the panel for each variant):
 [`docs/aid-frame-map.html`](docs/aid-frame-map.html), photos in [`docs/img/`](docs/img/).
@@ -39,7 +55,7 @@ More photos and an interactive model of the AID frame (where the video lands on 
 |---|---|---|
 | [`patches/mu1161/`](patches/mu1161/) | `core.so` variants of the CarPlay cluster stream (safe area, URL, frame rate, key frames, physical size) from one hash-pinned base | `core.so` |
 | [`navactiveignore/`](navactiveignore/) | NavActiveIgnore built from the unit's own HMI classes | Java (HMI) |
-| [`rg/`](rg/) | Native route guidance: port of tomasz-twardzicki's MU1427 solution to MU1161 (iAP2 RouteGuidance → BAP) | Java, iAP2 driver, `iap2.cfg`, reader |
+| [`rg/`](rg/) | Native route guidance (one package `rg`): port of tomasz-twardzicki's MU1427 solution to MU1161 (iAP2 RouteGuidance → BAP) with his lanes, distance bar and street name, our U-turn lanes and maneuver fallbacks, our iAP2 log gate and reader | Java, iAP2 driver, `iap2.cfg`, reader |
 | [`nowplaying/`](nowplaying/) | CarPlay track title and artist on the cluster | Java (HMI) |
 | [`hmiextras/`](hmiextras/) | Steering-wheel zoom and day/night resend for the cluster map | Java (HMI) |
 | [`installer/`](installer/) | SD-card installer run from the M.I.B. GEM menu, the rescue card, host tests | nothing by itself |
@@ -47,7 +63,7 @@ More photos and an interactive model of the AID frame (where the video lands on 
 | [`scripts/`](scripts/) | Read-only firmware readers (QNX6, IFS, LZOZ, JXE → JAR), SD-card tester | nothing |
 | [`firmware/`](firmware/) | Hashes and notes for the official K4525 update (the only allowed firmware) | nothing |
 
-### Map layout variants (GEM → `pmcp_zmien_wariant`)
+### Map layout variants (GEM → `pmcp_advanced` → `pmcp_switch_layout`)
 
 The stream is 800×480 and lies 1:1 on the AID panel. Safe area values are x / y / width / height.
 
@@ -75,6 +91,13 @@ All variants declare a physical size of 240×144 mm. Switching a variant swaps o
    **1. Check → 2. Install map → restart → map OK? → 3. Install all features → restart (trial start) → test →
    4. Confirm → restart.** It works like this from then on.
    Card 2 is only for an emergency after Confirm. After use it disarms itself; the copy helper's option 3 re-arms it.
+
+**Updating from v1.0-v1.3:** card 1 of this release, "1. Check", then **3. Install all features or update** → restart
+(trial start) → test → **4. Confirm**. Button 3 replaces the earlier driver, reader and Java packages (`rglu` → `rg`) by
+this card's. Make a new card 2 as well: rescue cards made before v1.4 do not restore the v1.4 iAP2 driver.
+Experimental Android Auto from the `experimental` branch is taken off by this card too: button 3 (and "Remove everything")
+first puts the factory `gal` back from its hash-verified copy; the advanced menu has a separate "Remove experimental
+Android Auto" button.
 
 Before you start you need [M.I.B. installed on the unit and a backup](docs/en/01-mib-install-backup.md). The installer
 on the card checks every file of your head unit first. On any other firmware it stops and changes nothing.
@@ -108,8 +131,8 @@ on an SD card. Design rules:
   written. Unknown state means no change.
 - Files are staged, verified and swapped in, and the stock files are backed up first. "Restore factory files" is
   always available.
-- **Java packages use a trial boot.** After "Wlacz" (enable) and a restart, the change must be confirmed ("Potwierdz")
-  in the same boot. Otherwise the next boot is stock again.
+- **Java packages use a trial boot.** After "3. Install all features" (or "On ..." for one package) and a restart, the
+  change must be confirmed ("4. Confirm") in the same boot. Otherwise the next boot is stock again.
 - A separate **rescue card** (`installer/build_rescue.py`) autostarts in update mode and restores the stock HMI
   without needing GEM.
 - Host tests (`installer/test/run_tests.sh`, `fault_inject.sh`) run the installer against a copy of the unit's file
@@ -134,7 +157,8 @@ workspace/
 | Input | Source | Pinned |
 |---|---|---|
 | base `core.so` (MU1102/791 profile, sha256 `00b48a8f…`) | omonob payload as shipped in M.I.B. | commit `3a2526a3` |
-| route guidance, patch sites | tomasz-twardzicki/MHI2-Carplay-Maps | commit `024dd159` |
+| route guidance, patch sites | tomasz-twardzicki/MHI2-Carplay-Maps | commit `024dd159` (MU1427), `7925a83` (lanes), `1d69473` (distance bar, street, feed recovery) |
+| maneuver table for the arrow fallbacks | harman-f/mhi2_altscreen_carplay (`MibrRgiManeuvers.java`) | commit `c01bbdc` |
 | MU1161/791 reference payload | mathsls/MHI2-Carplay-Maps | commit `cdd576b0` |
 | JXE → JAR converter | luka-dev/jxe2jar | commit `9eeb45bb` |
 | GEM menu (`Launcher-sda0.esd`) | M.I.B. 3.6.0 release zip | sha256 `4bfc6e72…` |
@@ -157,8 +181,53 @@ English in [`docs/en/`](docs/en/), Polish in [`docs/pl/`](docs/pl/):
 | Audit: AID fast start (tried, failed, why the AID needed a bus sleep) | [14-fast-start-audit](docs/en/14-fast-start-audit.md) | [14-audyt-szybki-start](docs/pl/14-audyt-szybki-start.md) |
 | Step-by-step guide in the car | [09-in-car-guide](docs/en/09-in-car-guide.md) | [09-tutorial-w-aucie](docs/pl/09-tutorial-w-aucie.md) |
 | Interactive AID frame model | [aid-frame-map.html](docs/aid-frame-map.html) | [aid-frame-map.pl.html](docs/aid-frame-map.pl.html) |
+| Architecture: what is replaced, intercepted and left alone (picture, guidance, HMI, Android Auto) | [architecture.html](docs/architecture.html) | — |
+| What changed in each release | [CHANGELOG.md](CHANGELOG.md) | — |
 
 The component directories have an English `README.md` and a Polish `README.pl.md`.
+
+## Experimental: Android Auto on the AID (work in progress)
+
+Not part of any release yet. We are working on the same result for Android Auto: the Google Maps picture on the AID and
+native VW arrows from Google Maps maneuvers, over the head unit's own MOST path (no extra adapter). Status as of
+2026-11-04, tested in the car:
+
+How it works:
+- the factory Android Auto receiver `gal` is started by a small wrapper with a hook (based on MacsInSpace's
+  [mib-cluster-map](https://github.com/MacsInSpace/mib-cluster-map), without SD-card paths);
+- the hook offers the phone a second 800×480 "cluster" screen and hands its H.264 stream to our feeder;
+- the feeder takes the MOST video channel and writes the frames into the same ring and `altscreen-most-bridge` that
+  CarPlay uses;
+- every new Android Auto set runs once as a trial and stays only after a confirm in GEM, like the Java packages.
+
+What works:
+- the Google Maps picture on the AID (a 26-minute drive without problems in mode "AA 2");
+- switching from CarPlay to Android Auto without a restart (the feeder now reuses CarPlay's video ring in place;
+  `dio_manager` keeps that ring mapped, so deleting it had filled `/ramdisk`);
+- native VW arrows with distance from Google Maps maneuvers ("gamma"). The hook translates the Android Auto navigation
+  messages into the same mailbox format the CarPlay reader writes, and the same Java code shows them. In a test drive it
+  recognised 94 of 94 maneuvers.
+
+What does not work yet:
+- **lost picture:** in about half of the connections the picture starts dark with artefacts, and the AID can also lose
+  the picture during a drive (loading screen). Same cause: the phone sends only one key frame per session.
+  - Already tried without success: waiting 5 or 10 s after taking the MOST channel, and holding and repeating that key
+    frame.
+  - Next: the feeder paces the frames into the bridge (about 2 Mbit/s) and logs gaps in the stream (built and tested on
+    the computer, not yet in the car); a different `idr_pic_id` in repeated key frames stays an idea. The head unit's own
+    video software is not touched.
+  - Workaround: plug the phone in again.
+- no VW arrow at the very start of a route with Android Auto (its "depart" step is not mapped yet).
+
+What we learned:
+- re-sending the video configuration to the phone drops the Android Auto connection about 9 s later;
+- a focus cycle on the head unit breaks the phone's session (it drops to about 3 fps and resets the connection about
+  two minutes later);
+- full Google Maps navigation messages need Android Auto protocol 1.7;
+- destination distance and arrival time are left to the Android Auto picture, which shows them already.
+
+The v1.4 release card can always take this experimental Android Auto off again ("Remove experimental Android Auto";
+button 3 and "Remove everything" do it first): it puts the factory `gal` back only from a copy with the factory hash.
 
 ## Credits
 
@@ -170,15 +239,20 @@ This project would not exist without:
   from, the unit backup, and the distribution of the omonob payload.
 - **[tomasz-twardzicki/MHI2-Carplay-Maps](https://github.com/tomasz-twardzicki/MHI2-Carplay-Maps)**: the `core.so` patch
   sites (frame rate, key frames, URL, safe area), NavActiveIgnore classes, and the native route guidance solution
-  (driver patch chain, HMI bridge, RGI reader) that `rg/` ports to MU1161.
+  (driver patch chain, HMI bridge, RGI reader) that `rg/` ports to MU1161: MU1427 v1.2.0 (arrows, distance, ETA, the
+  strict maneuver mapping `LiveModel.map`), MU1367 v1.4.0 lane guidance, and MU1367 v1.4.3 distance bar, street name and
+  feed recovery.
 - **[mathsls/MHI2-Carplay-Maps](https://github.com/mathsls/MHI2-Carplay-Maps)**: the first MU1161 + AID 791 build. The
   physical-size sites and the layout used by `map-square` come from it.
 - **[ZzYunOvO/MHI2-Carplay-Maps](https://github.com/ZzYunOvO/MHI2-Carplay-Maps)**: the toolbox that the mathsls and
   tomasz-twardzicki forks build on.
 - **diasdio** and **ramasauskas**: key-frame and safe-area height fixes, the AUSAFE queue fix in the MOST bridge.
-- **harman-f**: cluster URL query parameters (`showETA`, `maneuverLayout`, `showSpeedLimit`).
-- **[luka-dev](https://github.com/luka-dev/jxe2jar)**: jxe2jar and the RGI decoder.
-- **maxim-smirnov**: documentation of the LZOZ container format.
+- **harman-f**: cluster URL query parameters (`showETA`, `maneuverLayout`, `showSpeedLimit`), and the iAP2 → VW BAP
+  maneuver table of [mhi2_altscreen_carplay](https://github.com/harman-f/mhi2_altscreen_carplay)
+  (`MibrRgiManeuvers.java`, commit `c01bbdc`, GPL-3.0) used by the arrow fallbacks in `rg/`.
+- **[luka-dev](https://github.com/luka-dev/jxe2jar)**: jxe2jar, the RGI decoder and the iAP2 maneuver type names.
+- **maxim-smirnov**: documentation of the LZOZ container format, and the research showing that iAP2 route guidance
+  carries no speed limit ([mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster)).
 - **MacsInSpace**: the "Forget this car" tip when the cluster gets no picture.
 - The **MQB Toolbox** community: the original NavActiveIgnore idea.
 

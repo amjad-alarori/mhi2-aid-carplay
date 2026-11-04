@@ -5,7 +5,7 @@
 # 16 iAP2 messages 0x5201 route / 0x5202 maneuver / 0x5204 lane). Writes nothing anywhere.
 #
 # Per maneuver: type, driving side, junction, exit angle, and the arrow Tomasz's LiveModel.map() makes of it
-# (main 0 = no arrow). Per lane: position, status, angles and the direction byte LaneData.direction() sends.
+# (main 0 = no arrow; package rg then tries its maneuver fallbacks, rg/lanes/maneuvers.py). Per lane: position, status, angles and the direction byte LaneData.direction() sends.
 # Last: the day/night values dio_manager sent to the phone (system log). Press it while the maneuver is coming up.
 # gawk needs LC_ALL=C-TRADITIONAL on QNX: its "C" locale is multibyte and bytes >= 128 get lost (audit A44).
 export PATH=/proc/boot:/bin:/usr/bin:/usr/sbin:/sbin:/mnt/app/armle/bin:/mnt/app/armle/usr/bin
@@ -35,7 +35,7 @@ LC_ALL=$LOC LANG=$LOC $AWK -v size="$SIZE" '
     function sang(p,   v) { v = be(p, 2); return v >= 32768 ? v - 65536 : v }
     # LaneData.direction() (tomasz): degrees -> direction byte, 255 = invalid
     function ldir(d,   a, sec) { if (d < -180 || d > 180) return 255; a = d < 0 ? -d : d; sec = int((a * 16 + 180) / 360); return d < 0 ? (sec * 16) % 256 : (256 - sec * 16) % 256 }
-    # pasy v2 (rglu, rg/lanes/uturn.py): U-turn lanes as the VW bytes 114 (left) / 146 (right)
+    # lanes (rg, rg/lanes/uturn.py): U-turn lanes as the VW bytes 114 (left) / 146 (right)
     function ldir2(d) { if (d <= -170 || d == 180) return 114; if (d >= 170 && d < 180) return 146; return ldir(d) }
     # 0x5204 lane list: key 2 = one nested TLV per lane (0 position, 1 status, 2 angle (repeat), 3 highlight angle)
     function lanes(q, end,   tl, key, at, sz, r, lt, lk, la, out) {
@@ -121,10 +121,11 @@ LC_ALL=$LOC LANG=$LOC $AWK -v size="$SIZE" '
                 printf "#%d lanes%s\n", seq, lanes(p - len, p)
         }
     }' "$RGM/latest.bin"
-echo "lanes: a=angle/VW lane byte without|with U-turn lanes (rglu: VW U-turn 114 left, 146 right), hl = highlighted, st = status (1-2 recommended)"
+echo "lanes: a=angle/VW lane byte without|with U-turn lanes (rg: VW U-turn 114 left, 146 right), hl = highlighted, st = status (1-2 recommended)"
 echo "--- day/night sent to the phone (dio_manager, system log, last 8)"
 if type sloginfo >/dev/null 2>&1; then
     sloginfo 2>/dev/null | grep -i 'night' 2>/dev/null | tail -8
 fi
+echo "arrow = strict mapping; where it is main 0 the rg package may still show a fallback arrow (start, roundabout turns)"
 echo "types: 4/18/26 U-turn, 19 U-turn at roundabout, 1/2 left/right, 6/7 roundabout, 28-46 roundabout exit N"
 echo "PMCP_RGLAST_DONE"

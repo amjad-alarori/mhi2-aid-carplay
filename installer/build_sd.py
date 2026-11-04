@@ -18,7 +18,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent  # workspace: upstream/, backup/, archives/ next to this project
 PROJ = HERE.parent         # this project (any folder name)
-PMCP_BASE_VERSION = "pmcp-0.3.0-mu1161-791"
+PMCP_BASE_VERSION = "pmcp-0.4.0-mu1161-791"   # release v1.4.0 (rg-main)
 PMCP_VERSION = None   # PMCP_BASE_VERSION + "-" + first 8 hex of payload manifest, pmcp.sh and menu (set in main): one id per build
 
 # M.I.B. backup of the unit (folder named after the unit; every file read from it is pinned by sha256 below)
@@ -30,19 +30,19 @@ TUNING = PROJ / "build/mu1161-791/tuning"
 MIB_ESD = (REPO / "archives/mib-3.6.0/Launcher-sda0.esd",
            "22739f7226f36d089e2e0485fe2b6874aba2ee6b7b57c807de7bc25c0fdc9121", 111474)
 # Java packages (stage B+): name -> GEM label. Each needs a "JAR_<name>" entry in PAYLOAD.
-JAVA_PACKAGES = [("nai", "NavActiveIgnore (mapa na AID przy prowadzeniu w iPhonie)"),
-                 ("np", "Tytul i wykonawca utworu CarPlay na AID"),
-                 ("rg", "Prowadzenie bez pasow ruchu: strzalki, dystans, czas (zamiast rglu, wymaga Systemu RG)"),
-                 ("zoom", "Zoom mapy CarPlay strzalkami na kierownicy"),
-                 ("dn", "Dzien/noc mapy CarPlay na AID (ponowne wyslanie po starcie)"),
-                 # rg + Tomasz's native lane guidance + U-turn lanes as VW 114/146 (rg/lanes/uturn.py), confirmed in the
-                 # car (2026-10-31); swaps with rg
-                 ("rglu", "Prowadzenie + pasy ruchu z zawracaniem (zamiast rg, wymaga Systemu RG)")]
-# Tried and not shipped (docs/en/14-fast-start-audit.md, branch experimental): lanes without U-turns rgl (replaced by
-# rglu), day/night v2 and the cluster day/night module (no effect on Google Maps), AID fast start kf..kf4.
-# Packages that replace the same classes: never in one set, java-on of one swaps out the other (pmcp.sh java_alternative).
-# Pairs sorted by name.
-JAVA_ALTERNATIVES = {("JAR_rg", "JAR_rglu")}
+JAVA_PACKAGES = [("nai", "nai: AID map stays while the iPhone navigates (NavActiveIgnore)"),
+                 ("np", "np: CarPlay song title and artist on the AID"),
+                 ("rg", "rg: route guidance: arrows, lanes, distance bar, street, ETA (needs Route guidance system)"),
+                 ("zoom", "zoom: CarPlay map zoom with the steering wheel arrows"),
+                 ("dn", "dn: CarPlay map day/night on the AID (sent again after start)")]
+# rg = everything for route guidance in one package (v1.4): Tomasz's port + his lanes, our VW U-turn lanes, his MU1367
+# v1.4.3 distance bar / street name / feed recovery, and the maneuver fallbacks (rg/build.sh lanes-uturn-asf-m; the
+# experimental branch's rgluasfm, car-tested 2026-11-04). The rg and rglu of v1.3 and the experimental rg variants are
+# replaced by java-update (JAVA_OLD below).
+# Tried and not shipped (docs/en/14-fast-start-audit.md, branch experimental): day/night v2 and the cluster day/night
+# module (no effect on Google Maps), AID fast start kf..kf4, Android Auto.
+# No two packages replace the same class (checked in main).
+JAVA_ALTERNATIVES = set()
 # In-car set (chosen in the car, 2026-10-24): 1 clean map (default), 2 clean card, 3 map with showSpeedLimit (the variant the
 # unit has had since 2026-10-23, name kept), 4 clean map 40 columns left. All with url-map-hybrid's area.
 VARIANTS = ["map-clean", "card-clean", "url-map-hybrid", "map-clean-l40", "map-square", "map-square-fps40"]
@@ -55,6 +55,8 @@ STOCK = {
     "IAP2CFG": (BACKUP.parent / "MU1161-system/mm/iap2.cfg", "1539c79dd415eddeb59ea215c7a9b0ec4be3632fe066be3aefdff11bd19cdf37", 5951),
     "LSD": (BACKUP / "eso/hmi/lsd/lsd.sh", "97bbd4ecb51045b34c2a41955d9f53e1f144d174bff1aa8560e911525808e8d8", 16567),
     "DIO": (BACKUP / "eso/bin/apps/dio_manager", "609e42723ab3e36c7be5ceade81e03672ba4acd251f8eeb8b100e074aaf3c250", 686249),
+    # Android Auto receiver: never changed by this card; must be the factory file (the experimental card's AA is refused)
+    "GAL": (BACKUP / "eso/bin/apps/gal", "3b422d47a16dd473dc426aa3a88348bfee0da0e7585993a3566df242339346f9", 1269219),
 }
 
 # key -> (source, sha256, size, path inside payload/)
@@ -76,22 +78,40 @@ PAYLOAD = {
             "dbd031ecb28a2ec91c4704e133f4e2126cf1fe11498f673bc2e07fc0b1aaa7ab", 13285, "jars/NavActiveIgnore.jar"),
     "JAR_np": (PROJ / "build/np-mu1161-v2/pmcp-np.jar",
                "6b638868e65a6e573117cbf249850bb29e7b9aac3cd0502c2830652411f1dc23", 17928, "jars/pmcp-np.jar"),
-    "JAR_rg": (PROJ / "build/rg-mu1161-v2/pmcp-rg.jar",
-               "717fb53c667c612e6f3b483ea93620559eaa23404a2e237d255f5af40798a754", 34082, "jars/pmcp-rg.jar"),
+    # rg/build.sh <lsd> <dir> lanes-uturn-asf-m; a file name no earlier card used (java-update keeps the old set intact)
+    "JAR_rg": (PROJ / "build/rg-mu1161-lanes-uturn-asf-m/pmcp-rg.jar",
+               "13ca11c4e2a5fbe155165071f69fbee0e2b5b318e87fbfc079a9f76fefb62770", 47817, "jars/pmcp-guidance.jar"),
     "JAR_zoom": (PROJ / "build/extras-mu1161-v2/pmcp-zoom.jar",
                  "046f48210dbee3177fbaa2a25f69154b56055f59b074fced1a0202700dd78d7b", 4740, "jars/pmcp-zoom.jar"),
     "JAR_dn": (PROJ / "build/extras-mu1161-v2/pmcp-dn.jar",
                "aabe871e87510177a333f1a76d69015f8bdeb994fba4ad1251e1b7f2b5afbd70", 11421, "jars/pmcp-dn.jar"),
-    # rg/build.sh ... lanes-uturn (lanes + U-turn lanes 114/146)
-    "JAR_rglu": (PROJ / "build/rg-mu1161-lanes-uturn/pmcp-rg.jar",
-                 "72ab72214ee91a0d95ba0ec4d57a65cbee95d8ee82cb23af82fcb6b082591a33", 38529, "jars/pmcp-rglu.jar"),
-    "RG_DRIVER": (PROJ / "build/rg-mu1161/ipod-drvr-iap2.so",
-                  "76926bde9bdf1e06fdfe57fd324bbd8772bcb2a98a58ac444b4822e25a331b48", 743196, "rg/ipod-drvr-iap2.so"),
-    "RG_CFG": (PROJ / "build/rg-mu1161/iap2.cfg",
+    # Tomasz's driver patch + our log gate: his RGI receive log only with /dev/shmem/pmcp-rgi-debug (rg/driver/)
+    "RG_DRIVER": (PROJ / "build/rg-mu1161-lanes-uturn-asf-m/ipod-drvr-iap2-gated.so",
+                  "519ea3c5ba08427ea20d62817747af390ac7256bad447da5fcfda388d10b9ed3", 743272, "rg/ipod-drvr-iap2.so"),
+    "RG_CFG": (PROJ / "build/rg-mu1161-lanes-uturn-asf-m/iap2.cfg",
                "c61407d9c6cd0d2529afedad0c9a120d5da5a504739e273bbb3dbea1e0b9b491", 6079, "rg/iap2.cfg"),
-    "RG_READER": (PROJ / "build/rg-mu1161/rgi-observer",
-                  "b683cef78828bfab2b8cdf43e4ea82e5d7c16d0d47730936d936e82af6ee08ac", 16606, "rg/rgi-observer"),
+    # rgi-observer pmcp-r1 (rg/reader/, prebuilt in the repository): a stuck driver read costs one invalid record, not the reader
+    "RG_READER": (PROJ / "rg/reader/prebuilt/rgi-observer",
+                  "3166df9b91119475f93043ac8c150e2641732e602161839a137a1907d4ef11df", 13552, "rg/rgi-observer"),
 }
+# Earlier pmcp route guidance files that rg-update may replace in place (pmcp.sh RG_KNOWN): the v1.0-v1.3 driver and
+# Tomasz's reader. (kind, sha256, sha1, size): only their hashes go to the card, so no earlier build is needed here.
+RG_KNOWN = [
+    ("DRIVER", "76926bde9bdf1e06fdfe57fd324bbd8772bcb2a98a58ac444b4822e25a331b48", "7613f35cb8597dbaedd16fd83260a14c7f2d654f", 743196),
+    ("READER", "b683cef78828bfab2b8cdf43e4ea82e5d7c16d0d47730936d936e82af6ee08ac", "1b6cb87d2aa1148f28996f72cb00349519b19077", 16606),
+]
+# Java packages of earlier cards that java-update replaces (pmcp.sh JAVA_OLD): (name, sha256, sha1, size, jar file on the
+# unit, successor). v1.2/v1.3 rg and rglu, and the experimental branch's rg variants (rg/build.sh modes base,
+# lanes-uturn, and on branch experimental lanes-uturn-aa, -asf, -asf-aa, -asf-m, -asf-m-aa). Only their hashes go to the card.
+JAVA_OLD = [
+    ("rg", "717fb53c667c612e6f3b483ea93620559eaa23404a2e237d255f5af40798a754", "f748313879a40e3c8d69304dcfbfbbf003a412c6", 34082, "pmcp-rg.jar", "rg"),
+    ("rglu", "72ab72214ee91a0d95ba0ec4d57a65cbee95d8ee82cb23af82fcb6b082591a33", "29b4bbcacc1c4251b7a47efd3c11445ba33e41f8", 38529, "pmcp-rglu.jar", "rg"),
+    ("rglua", "a9a25b1eb9aeed1347bb9c6c38aef3549dc2416d844c10b203fd175319f62161", "809f18a0deb12667fe651c5309a6be5c63a3849a", 38832, "pmcp-rglua.jar", "rg"),
+    ("rgluasf", "a092ef2a617cd63cde454d2bb18e8ea249f374770474ac030e5aea53edc373ed", "4fa0c5b25cbddc70b7c672ce58043fbd8eb3f68d", 47187, "pmcp-rgluasf.jar", "rg"),
+    ("rgluasfa", "b3a35c9b40ae4bb5360189178b18218005a194f4585ee491a916bfce539c034d", "385c81be0210bdbd9f599a7739124d528f3d8770", 47510, "pmcp-rgluasfa.jar", "rg"),
+    ("rgluasfm", "13ca11c4e2a5fbe155165071f69fbee0e2b5b318e87fbfc079a9f76fefb62770", "517763a46b37afac546ec45e24b72cf15307ad9a", 47817, "pmcp-rgluasfm.jar", "rg"),
+    ("rgluasfma", "de39c893d8ea86abe4f57bc350fd7bd2d9b4a79f9023fc28a430cc2a20957ace", "ca03f2696567e24866b30e370159835a2cfae3db", 48161, "pmcp-rgluasfma.jar", "rg"),
+]
 for name in VARIANTS:
     PAYLOAD["CORE_" + name] = (TUNING / name / "core.so", None, 75099, "core/%s/core.so" % name)
 
@@ -216,7 +236,7 @@ exit 0
 
 # the diagnostics button runs bin/diag.sh directly: it must work even when pmcp.sh stops at its self test
 DIAG_SCRIPT = """#!/bin/ksh
-# pmcp GEM button: 0. Diagnostyka (generated by build_sd.py)
+# pmcp GEM button: 0. Diagnostics (generated by build_sd.py)
 trap '' 2
 /bin/ksh /net/mmx/fs/sda0/pmcp/bin/diag.sh
 trap 2
@@ -294,33 +314,37 @@ exit 0
 
 
 def menu_entries():
-    # (file name, pmcp arguments, GEM label). ASCII only: GEM fonts and the esd parser are not tested with Polish letters.
-    # Main screen: the simple path in English. Everything else (variants, single packages) is under pmcp_advanced.
+    # (file name, pmcp arguments, GEM label). ASCII only: GEM fonts and the esd parser are not tested with other letters.
+    # Main screen: the simple path. Everything else (variants, single packages) is under pmcp_advanced.
     top = [("verify", "verify", "1. Check card and unit (read-only)"),
            ("install-" + START_VARIANT, "install " + START_VARIANT, "2. Install the CarPlay map on the AID"),
-           ("all-on", ALL_ON, "3. Install all features or update: main map, arrows, lanes, ETA, zoom, song title"),
+           ("all-on", ALL_ON, "3. Install all features or update: map, route guidance, zoom, day/night, song title"),
            ("java-confirm", "java-confirm", "4. Confirm: everything works (only in the first start after 3)"),
            ("java-retry", "java-retry", "5. Try again: the next start is a new trial"),
            ("status", "status", "Status (read-only)"),
            ("restore", "restore", "Remove everything (back to factory files)")]
-    adv = [("diag", None, "0. Diagnostyka (tylko odczyt, zrob zdjecia ekranu)"),
+    adv = [("diag", None, "0. Diagnostics (read-only, photograph the screen)"),
            ("timeline", TIMELINE, "Start timeline: seconds from unit start to CarPlay, MOST, navigation (read-only)"),
            ("rglast", RGLAST, "RG last maneuver: what the iPhone sent and which VW arrow it gives (read-only)"),
-           ("navdiag", NAVDIAG, "Navigation diagnostics: why the VW navigation does not start (read-only)")]
-    inst = [("install-" + v, "install " + v, "Instaluj obraz: " + v) for v in VARIANTS if v != START_VARIANT]
-    sw = [("switch-" + v, "switch " + v, "Zmien wariant na: " + v) for v in VARIANTS]
-    rg = [("rg-system-on", "rg-system-on", "System RG: wlacz (sterownik iAP2, iap2.cfg, czytnik)"),
-          ("rg-system-off", "rg-system-off", "System RG: wylacz (fabryczny sterownik i iap2.cfg)")]
-    java = rg + [("java-on-" + n, "java-on " + n, "Wlacz: " + label) for n, label in JAVA_PACKAGES] + \
-           [("java-off-" + n, "java-off " + n, "Wylacz: " + label) for n, label in JAVA_PACKAGES]
+           ("navdiag", NAVDIAG, "Navigation diagnostics: why the VW navigation does not start (read-only)"),
+           ("aa-remove", "aa-remove", "Remove experimental Android Auto (factory gal back; button 3 does it too)")]
+    inst = [("install-" + v, "install " + v, "Install map layout: " + v) for v in VARIANTS if v != START_VARIANT]
+    sw = [("switch-" + v, "switch " + v, "Switch map layout to: " + v) for v in VARIANTS]
+    rg = [("rg-system-on", "rg-system-on", "Route guidance system on (iAP2 driver, iap2.cfg, reader)"),
+          ("rg-system-off", "rg-system-off", "Route guidance system off (factory iAP2 driver and iap2.cfg)"),
+          ("rg-update", "rg-update", "Route guidance system update (driver and reader of this card, RG stays on)"),
+          ("java-update", "java-update", "Java update: packages of an earlier card -> this card's (rglu -> rg)")]
+    java = rg + [("java-on-" + n, "java-on " + n, "On " + label) for n, label in JAVA_PACKAGES] + \
+           [("java-off-" + n, "java-off " + n, "Off " + label) for n, label in JAVA_PACKAGES]
     return top, adv, inst, sw, java
 
 
-# actions of "Install all features or update", in order: the main map (an older install gets START_VARIANT, already
-# there: skipped), the route guidance system (rglu needs it), then every package except rg (rglu replaces it, also on an
-# older install with rg). Steps already done answer *_ALREADY_* and are skipped, so the same button brings any earlier
-# pmcp install to this card's set.
-ALL_ON = ["switch_" + START_VARIANT, "rg-system-on"] + ["java-on_" + n for n, _ in JAVA_PACKAGES if n != "rg"]
+# actions of "Install all features or update", in order: an experimental card's Android Auto off (aa-remove), an earlier
+# card's RG driver/reader and Java packages replaced by
+# this card's (rg-update, java-update), the main map (an older install gets START_VARIANT, already there: skipped), the
+# route guidance system (rg needs it), then every package. Steps already done answer *_ALREADY_* and are skipped, so
+# the same button brings any earlier pmcp install to this card's set.
+ALL_ON = ["aa-remove", "rg-update", "java-update", "switch_" + START_VARIANT, "rg-system-on"] + ["java-on_" + n for n, _ in JAVA_PACKAGES]
 
 
 def menu_script(args, label):
@@ -352,16 +376,16 @@ def esd_block(version, top, adv, inst, sw, java):
     out += kv("Advanced: diagnostics (read-only), single packages and other map layouts.")
     for n, _, l in adv:
         out += sc(n, l)
-    out += ['screen pmcp_inne_warianty pmcp_advanced', '']
+    out += ['screen pmcp_other_layouts pmcp_advanced', '']
     for n, _, l in inst:
         out += sc(n, l)
-    out += ['screen pmcp_zmien_wariant pmcp_advanced', '']
+    out += ['screen pmcp_switch_layout pmcp_advanced', '']
     for n, _, l in sw:
         out += sc(n, l)
-    out += ['screen pmcp_etap_B_java pmcp_advanced', '']
-    out += kv("Pierwszy start po zmianie jest probny: jesli wszystko dziala, w tym starcie nacisnij 4. Confirm.")
-    out += kv("Bez potwierdzenia nastepny start jest fabryczny (potem: 5. Try again).")
-    out += kv("Czarny ekran: pokretlo glosnosci 10 s, nastepny start bez naszych JAR-ow.")
+    out += ['screen pmcp_packages pmcp_advanced', '']
+    out += kv("The first start after a change is a trial: if everything works, press 4. Confirm in that start.")
+    out += kv("Without Confirm the next start is the factory one (then: 5. Try again).")
+    out += kv("Black screen: hold the volume knob ~10 s, the next start loads none of our JARs.")
     for n, _, l in java:
         out += sc(n, l)
     return "\r\n".join(out) + "\r\n"
@@ -401,6 +425,17 @@ def main():
                         owner[n] = key
     if {k for k in PAYLOAD if k.startswith("JAR_")} != {"JAR_" + n for n, _ in JAVA_PACKAGES}:
         sys.exit("JAVA_PACKAGES and JAR_* payload entries differ")
+    # java-update relies on new file names: an earlier card's JAR file is never overwritten while its set is active
+    ours = {rel.rsplit("/", 1)[-1] for k, (src, h, size, rel) in PAYLOAD.items() if k.startswith("JAR_")}
+    cur = {(k[4:], h[:8]) for k, (src, h, size, rel) in PAYLOAD.items() if k.startswith("JAR_")}
+    olds = [(name, h[:8]) for name, h, h1, size, jar, succ in JAVA_OLD]
+    if len(set(olds)) != len(olds) or set(olds) & cur or len({o[4] for o in JAVA_OLD}) != len(JAVA_OLD):
+        sys.exit("JAVA_OLD: a (name, sha8) twice or equal to this card's package, or a JAR file name twice")
+    for name, h, h1, size, jar, succ in JAVA_OLD:
+        if len(h1) != 40 or len(h) != 64:
+            sys.exit("JAVA_OLD entry %s: bad hash length" % name)
+        if jar in ours or not jar.startswith("pmcp-") or ("JAR_" + succ) not in PAYLOAD:
+            sys.exit("JAVA_OLD entry %s: file %s reused, outside pmcp-*.jar (rescue card) or no successor" % (name, jar))
 
     lsd_patched = patch_lsd(stock["LSD"])
     (pm / "payload/lsd/lsd.sh").parent.mkdir(parents=True, exist_ok=True)
@@ -420,6 +455,14 @@ def main():
     pairs = {sha(selftest): hashlib.sha1(selftest).hexdigest()}
     for data in stock.values():
         pairs[sha(data)] = hashlib.sha1(data).hexdigest()
+    known = []
+    for kind, h, h1, size in RG_KNOWN:
+        pairs[h] = h1
+        known.append("%s %s %d" % (kind, h, size))
+    old = []
+    for name, h, h1, size, jar, succ in JAVA_OLD:
+        pairs[h] = h1
+        old.append("%s %s %d %s %s" % (name, h, size, jar, succ))
     for key, h, size, rel in rows:
         data = (pm / "payload" / rel).read_bytes()
         assert sha(data) == h and len(data) == size, key
@@ -429,12 +472,14 @@ def main():
     menus = menu_entries()
     menu_text = esd_block("@@VERSION@@", *menus) + "".join(n + "\n" + menu_script(a, l) for scr in menus for n, a, l in scr)
     global PMCP_VERSION
-    PMCP_VERSION = PMCP_BASE_VERSION + "-" + sha((manifest + "\n" + (HERE / "template/pmcp.sh.in").read_text() + menu_text).encode())[:8]
+    PMCP_VERSION = PMCP_BASE_VERSION + "-" + sha((manifest + "\n" + "\n".join(known) + "\n" + "\n".join(old) + "\n"
+                                                   + (HERE / "template/pmcp.sh.in").read_text() + menu_text).encode())[:8]
     tpl = (HERE / "template/pmcp.sh.in").read_text()
     for k, v in {
         "@@PMCP_VERSION@@": PMCP_VERSION, "@@MANIFEST@@": manifest,
         "@@SELFTEST_SHA@@": sha(selftest), "@@SELFTEST_SIZE@@": str(len(selftest)),
-        "@@HASHMAP@@": hashmap,
+        "@@HASHMAP@@": hashmap, "@@RG_KNOWN@@": "\n".join(known), "@@JAVA_OLD@@": "\n".join(old),
+        "@@STOCK_GAL_SHA@@": STOCK["GAL"][1], "@@STOCK_GAL_SIZE@@": str(STOCK["GAL"][2]),
         "@@STOCK_LSD_SHA@@": STOCK["LSD"][1], "@@STOCK_LSD_SIZE@@": str(STOCK["LSD"][2]),
         "@@STOCK_DIO_SHA@@": STOCK["DIO"][1], "@@STOCK_DIO_SIZE@@": str(STOCK["DIO"][2]),
         "@@STOCK_DRV_SHA@@": STOCK["IAP2DRV"][1], "@@STOCK_DRV_SIZE@@": str(STOCK["IAP2DRV"][2]),

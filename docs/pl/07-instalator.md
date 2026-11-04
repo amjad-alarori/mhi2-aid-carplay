@@ -1,20 +1,20 @@
 # Instalator pmcp: mapa CarPlay na AID, MU1161 / 791
 
-Stan: **przetestowany w aucie (październik 2026).** Kod: [`installer/`](../../installer/).
+Stan: **przetestowany w aucie (październik 2026; prowadzenie v1.4 listopad 2026).** Kod: [`installer/`](../../installer/).
 Build SD tworzy `installer/build_sd.py` (w katalogu wyjściowym `BUILD-MANIFEST.txt` z hashami wszystkich plików, wersja
-w GEM `pmcp-0.3.0-mu1161-791-<id buildu>`, gdzie ID to pierwsze 8 znaków SHA-256 manifestu i szablonu `pmcp.sh`).
+w GEM `pmcp-0.4.0-mu1161-791-<id buildu>`, gdzie ID to pierwsze 8 znaków SHA-256 manifestu i szablonu `pmcp.sh`).
 Kartę instalacyjną składa `installer/build_card_install.py`, kartę ratunkową `installer/build_rescue.py`.
 
 ## Paczki (budowane razem, wgrywane partiami przyciskami M.I.B.)
 
 | Paczka | Co zmienia | Status |
 |---|---|---|
-| 0 Karta ratunkowa | nic w radiu (osobna karta z `installer/build_rescue.py`) | sprawdzona w aucie (`WYNIK=OK`) |
+| 0 Karta ratunkowa | nic w radiu (osobna karta z `installer/build_rescue.py`) | sprawdzona w aucie (`RESULT=OK`; do v1.3 `WYNIK=OK`) |
 | A Obraz CarPlay + warianty `core.so` | `dio_manager` → wrapper, `/mnt/app/carplaymaps` | działa |
 | B Mechanizm Java + NavActiveIgnore | jeden stały blok w `lsd.sh` + JAR | działa; przycisk „3. Install all features” na ekranie głównym (od v1.2.0 bez odblokowania) |
 | C Parametry mapy iPhone'a w URL | tylko `core.so` (wariant `url-map-hybrid`, `showSpeedLimit=yes`) | w menu; na tej jednostce parametr nic nie pokazuje |
 | D Tytuł i wykonawca | JAR `pmcp-np.jar` (`HsmTarget` + `CurrentStationInfo`) | działa ([`nowplaying/`](../../nowplaying/README.pl.md)) |
-| E Natywne prowadzenie (port Tomasza) | „System RG” (sterownik iAP2, `iap2.cfg`, czytnik) + JAR `pmcp-rg.jar` | działa ([`rg/`](../../rg/README.pl.md)) |
+| E Natywne prowadzenie (port Tomasza) | „Route guidance system” (sterownik iAP2 z bramką logu, `iap2.cfg`, czytnik `pmcp-r1`) + jeden JAR `pmcp-guidance.jar` (paczka `rg`: strzałki, pasy, pasek odległości, ulica, ETA, zastępcze strzałki) | działa ([`rg/`](../../rg/README.pl.md)) |
 | F Zoom z kierownicy | JAR `pmcp-zoom.jar` (hook w `DSIKeyPanelDispatcher`, tylko krótkie naciśnięcie) | działa ([`hmiextras/`](../../hmiextras/README.pl.md)) |
 | G Dzień/noc mapy na AID | JAR `pmcp-dn.jar` (hooki w `ASLHandler`) | działa ([`hmiextras/`](../../hmiextras/README.pl.md)) |
 
@@ -48,7 +48,8 @@ Układ omonob/mathsls na MU1161:
 | `dio_manager.wrapper.sh` | mathsls (logi na `/dev/null`) | `8c12f697…633d` |
 | `core.so` | jeden z 5 wariantów (niżej) | w `BUILD-MANIFEST.txt` |
 | `lsd.sh` (etap B+) | wygenerowany na hoście z fabrycznego: fabryczny + jeden blok pmcp przed `export LD_PRELOAD` / `$J9` | `LSD_JAVA` w manifeście |
-| JAR-y Java (etap B+) | nasze buildy (`NavActiveIgnore.jar`, `pmcp-np.jar`, `pmcp-rg.jar`, `pmcp-zoom.jar`, `pmcp-dn.jar`) | w `BUILD-MANIFEST.txt` |
+| JAR-y Java (etap B+) | nasze buildy (`NavActiveIgnore.jar`, `pmcp-np.jar`, `pmcp-guidance.jar` (paczka `rg`), `pmcp-zoom.jar`, `pmcp-dn.jar`) | w `BUILD-MANIFEST.txt` |
+| system prowadzenia | sterownik iAP2 `519ea3c5…` (743,272 B), `iap2.cfg` `c61407d9…`, czytnik `rgi-observer` `3166df9b…` (13,552 B), zob. [`rg/`](../../rg/README.pl.md) | w `BUILD-MANIFEST.txt` |
 
 Aktualne hashe `core.so` i JAR-ów są w manifeście, który generuje `installer/build_sd.py` dla danego buildu.
 
@@ -78,12 +79,24 @@ Warianty `core.so` (`switch` zmienia tylko ten plik, potem restart, bez „4. Co
    skrypcie (bez pliku tymczasowego), więc niezapisywalna karta nie może pominąć kontroli.
 3. **Firmware:** `lsd.jxe` = 55,830,309 B (MU1161).
 4. **Stan jednostki:**
-   - `STOCK`: brak `/mnt/app/carplaymaps`, brak JAR-ów nawigacji/sterowania, `lsd.sh`, `dio_manager`, sterownik iAP2 i `iap2.cfg` fabryczne.
+   - `STOCK`: brak `/mnt/app/carplaymaps`, brak JAR-ów nawigacji/sterowania, `lsd.sh`, `dio_manager`, `gal`, sterownik iAP2 i `iap2.cfg` fabryczne.
      Tylko w tym stanie wolno `install`. Pozostałość `.carplaymaps-old-*` po przerwanym `restore` nie przeszkadza (sprząta ją `install`).
    - `VIDEO` (etap A): wrapper aktywny, `lsd.sh` fabryczny, brak naszych JAR-ów.
    - `JAVA` (etap B+): jak `VIDEO` plus blok w `lsd.sh` i spójny zestaw JAR-ów (każdy z hashem z manifestu, `HMI_BOOT` dokładnie zgodny).
+     Zestaw może też zawierać paczki wcześniejszej karty (`JAVA_OLD`: `rg` `717fb53c` i `rglu` `72ab7221` z v1.2/v1.3,
+     eksperymentalne `rglua`, `rgluasf`, `rgluasfa`, `rgluasfm`, `rgluasfma`); wtedy `java-on` i `java-off` odmawiają
+     (`JAVA_SET_HAS_OLD_PACKAGES_RUN_JAVA_UPDATE_FIRST`), dopóki `java-update` ich nie zastąpi, a „Status” pokazuje
+     „packages of an earlier card: …”.
+   - System prowadzenia (`RGSYS`, pokazuje go „Status”): `off`, `on`, `old` (włączony, ale ze sterownikiem i/lub czytnikiem
+     wcześniejszej karty, `RG_KNOWN`: sterownik v1.0–v1.3 `76926bde…`, czytnik Tomasza `b683cef7…`; zastępuje je `rg-update`)
+     albo `unknown`.
    - `PARTIAL`: przerwana akcja, kopie fabryczne nienaruszone. Wolno tylko `restore` (i `rg-system-off`).
-   - `UNKNOWN`: cokolwiek innego, np. inny mod albo zmieniony `lsd.sh`. **Wszystko jest odrzucane.**
+   - `UNKNOWN`: cokolwiek innego, np. inny mod albo zmieniony `lsd.sh`. **Wszystko jest odrzucane.** Także Android Auto
+     z karty eksperymentalnej (`carplaymaps/aa`, resztki przerwanej instalacji albo niefabryczny `gal`), z jednym wyjściem:
+     `aa-remove` („Remove experimental Android Auto”, też pierwszy krok przycisku 3 i `restore`). Zapisuje tylko na instalacji
+     pmcp i tylko gdy `gal` jest fabryczny albo `carplaymaps/aa/gal.real` ma fabryczny hash: fabryczny `gal` jest
+     kopiowany z tej kopii, sprawdzany i przenoszony, potem znikają pliki i znaczniki AA. Ponowne uruchomienie kończy
+     przerwane. Potem przycisk 3 zmienia eksperymentalne warianty `rg` na `rg`.
 5. **Każda skopiowana kopia** (staging) jest hashowana przed przełączeniem; `chmod` sprawdzany, `dio_manager` musi być wykonywalny.
    Bezpośrednio przed przełączeniem jeszcze raz sprawdzamy, czy `lsd.sh` i `dio_manager` są dalej fabryczne.
 6. **Po przełączeniu** stan musi być oczekiwany, a `core.so` mieć oczekiwany hash. Inaczej automatyczny rollback.
@@ -93,9 +106,14 @@ Kolejność przełączania:
 - etap A: stare znaczniki próby usunięte → katalog `carplaymaps` → `dio_manager`;
 - `java-on`: JAR → `HMI_BOOT` (nowy ID = nowy próbny start) → `lsd.sh` (tylko przy pierwszej paczce);
 - `java-off`: `HMI_BOOT` → usunięcie JAR-a; ostatnia paczka: najpierw fabryczny `lsd.sh`, potem JAR i `HMI_BOOT`;
-- `restore`: `lsd.sh` → `dio_manager` → JAR-y → System RG → znaczniki próby → `carplaymaps` jednym `mv` do `.carplaymaps-old-<pid>`,
+- `restore`: `lsd.sh` → `dio_manager` → JAR-y → system prowadzenia → znaczniki próby → `carplaymaps` jednym `mv` do `.carplaymaps-old-<pid>`,
   dopiero potem `rm -rf`.
-- System RG (`rg-system-on`): `/mnt/system` wraca na read-only po zapisie.
+- system prowadzenia (`rg-system-on`): `/mnt/system` wraca na read-only po zapisie;
+- `rg-update`: sterownik i czytnik z tej karty skopiowane i zhashowane → czytnik zatrzymany → `mv` sterownika → `mv` czytnika;
+  podmieniane są tylko pliki z `RG_KNOWN`, `iap2.cfg`, `SYSTEM_ON` i kopie fabryczne zostają (droga powrotu: `rg-system-off`).
+  Ponowne uruchomienie po przerwaniu kończy robotę;
+- `java-update`: nowe JAR-y (nazwa pliku, której nie używała żadna wcześniejsza karta, np. `pmcp-guidance.jar`) → `HMI_BOOT`
+  (nowy ID = nowy start próbny) → usunięcie starych JAR-ów. Do przełączenia `HMI_BOOT` stary zestaw zostaje nietknięty.
 
 **Test zaników zasilania** (`installer/test/fault_inject.sh`): dla każdej akcji łańcucha
 install → java-on nai → java-on np → rg-system-on → java-on rg → switch → java-off np → java-off rg → rg-system-off → java-off nai → restore
@@ -122,32 +140,41 @@ z `MIB_V3.6.0.zip` (`22739f72…9121`); test sprawdza, że oryginalna treść je
 2. W aucie: GEM → `=>M.I.B.<=` → **`pmcp_CarPlay_AID`**. Ekran główny (po angielsku):
    - „1. Check card and unit (read-only)” → `verify`;
    - „2. Install the CarPlay map on the AID” → `install map-square-fps40` (etap A);
-   - „3. Install all features or update: …” → skrypt menu `all-on.sh`: `switch map-square-fps40`, `rg-system-on`, potem
-     `java-on` nai, np, zoom, dn, rglu po kolei (jeden zestaw, jeden start próbny); stop na pierwszym `PMCP_FAIL`,
-     `*_ALREADY_*` liczy się jako zrobione (`switch` na już aktywną mapę odpowiada `SWITCH_ALREADY_<wariant>`), więc ten sam
-     przycisk doprowadza każdą wcześniejszą instalację do zestawu z karty; `java-on rglu` zastępuje `rg` (te same klasy,
-     `java_alternative`);
+   - „3. Install all features or update: map, route guidance, zoom, day/night, song title” → skrypt menu `all-on.sh`:
+     `rg-update`, `java-update`, `switch map-square-fps40`, `rg-system-on`, potem `java-on` nai, np, rg, zoom, dn po kolei
+     (jeden zestaw, jeden start próbny); stop na pierwszym `PMCP_FAIL`, `*_ALREADY_*` liczy się jako zrobione (`switch` na już
+     aktywną mapę odpowiada `SWITCH_ALREADY_<wariant>`), więc ten sam przycisk doprowadza każdą wcześniejszą instalację
+     (v1.0–v1.3 albo warianty rg z karty eksperymentalnej po usunięciu Android Auto) do zestawu z karty;
    - „4. Confirm: everything works (only in the first start after 3)” → `java-confirm`;
    - „5. Try again: the next start is a new trial” → `java-retry`;
    - „Status (read-only)”, „Remove everything (back to factory files)” → `restore`;
-   - podmenu `pmcp_advanced`: „0. Diagnostyka (tylko odczyt, zrob zdjecia ekranu)” (działa nawet wtedy, gdy `pmcp.sh`
-     zatrzyma się na self teście) oraz podmenu `pmcp_inne_warianty` (instalacja innym układem), `pmcp_zmien_wariant`
-     (`switch`, np. „Zmien wariant na: map-clean”) i `pmcp_etap_B_java` (System RG wlacz/wylacz, Wlacz/Wylacz pojedynczą paczkę).
-   Żadna akcja nie wymaga pliku odblokowania (do v1.1.0 akcje Java i System RG wymagały `pmcp/ODBLOKUJ_ETAP_B`).
+   - podmenu `pmcp_advanced`: „0. Diagnostics (read-only, photograph the screen)” (działa nawet wtedy, gdy `pmcp.sh`
+     zatrzyma się na self teście), „Start timeline: …”, „RG last maneuver: …” (co wysłał iPhone i jaką strzałkę VW daje
+     ścisłe mapowanie; gdzie pokazuje main 0, paczka `rg` może jeszcze pokazać strzałkę zastępczą), „Navigation
+     diagnostics: …” oraz podmenu `pmcp_other_layouts` („Install map layout: <wariant>”), `pmcp_switch_layout` (`switch`,
+     „Switch map layout to: <wariant>”) i `pmcp_packages`: „Route guidance system on (iAP2 driver, iap2.cfg, reader)”,
+     „Route guidance system off (factory iAP2 driver and iap2.cfg)”, „Route guidance system update (driver and reader of
+     this card, RG stays on)” (`rg-update`), „Java update: packages of an earlier card -> this card's (rglu -> rg)”
+     (`java-update`) oraz „On …” / „Off …” dla każdej paczki (nai, np, rg, zoom, dn).
+   Żadna akcja nie wymaga pliku odblokowania (do v1.1.0 akcje Java i systemu prowadzenia wymagały `pmcp/ODBLOKUJ_ETAP_B`).
 3. Wynik jest na ekranie GEM. Karta SD jest w GEM tylko do odczytu (nawet `mount -uw` się nie udaje), więc logu nie da się
    zapisać na kartę: instalator wypisuje `PMCP_WARN=SD_LOG_NOT_WRITABLE` i działa dalej. **Rób zdjęcia ekranu.** Jeśli karta
    jest zapisywalna, log trafia do `/pmcp/log/pmcp-<akcja>-<pid>.log`.
 
-Etykiety są bez polskich znaków (nie wiadomo, czy GEM i jego parser je obsługują).
+Wszystkie etykiety są po angielsku (od v1.4) i w czystym ASCII.
 
 Kolejność (jedna wizyta w aucie):
 1. „1. Check card and unit” (`verify`): tylko odczyt. Oczekiwane `PMCP_VERIFY_OK state=STOCK`.
 2. „2. Install the CarPlay map on the AID” (etap A), potem pełny restart. Jeśli na AID nie ma obrazu CarPlay: w iPhonie
    Ustawienia → Ogólne → CarPlay → auto → „Zapomnij to auto” i podłączyć ponownie (iPhone pamięta stare wyświetlacze auta).
-   Inny układ mapy: `pmcp_advanced` → „Zmien wariant na: …”.
+   Inny układ mapy: `pmcp_advanced` → `pmcp_switch_layout` → „Switch map layout to: …”.
 3. Tylko gdy mapa działa: „3. Install all features” → restart (start próbny) → sprawdzić HMI i funkcje → **w tym samym starcie**
    „4. Confirm” → restart. Bez potwierdzenia następny start jest fabryczny.
 4. Wycofanie: „Remove everything (back to factory files)” i restart.
+
+Aktualizacja z v1.0–v1.3: „1. Check” (stan `JAVA`; „Status” może pokazać „Route guidance system: old” i „packages of an
+earlier card: rglu”), potem „3. Install all features or update” (uruchamia `rg-update` i `java-update`) → restart (start
+próbny) → „4. Confirm”. Zrób też nową kartę ratunkową (niżej).
 Karta ratunkowa jest na awarię po potwierdzeniu; wcześniejszy test jest opcjonalny.
 
 Szczegółowy przewodnik po kolejnych krokach w aucie: [09-tutorial-w-aucie.md](09-tutorial-w-aucie.md).
@@ -160,15 +187,16 @@ shelle `mksh` (rodzina pdksh, jak QNX) i `ksh` (ksh93). Kod wyjścia = liczba ni
 
 - `verify` niczego nie zapisuje; zły wariant, uszkodzony bajt payloadu (też przy niezapisywalnym katalogu logów), uszkodzony self test,
   zły rozmiar `lsd.jxe`, zmieniony `lsd.sh` i obcy mod są odrzucane bez zmian w drzewie;
-- pełny łańcuch install → paczki Java (1, 2 i 5 naraz) → System RG → switch → restore daje drzewo **bajtowo identyczne** z fabrycznym;
+- pełny łańcuch install → paczki Java (1, 2 i 5 naraz) → system prowadzenia → switch → restore daje drzewo **bajtowo identyczne** z fabrycznym;
 - **próbny start na prawdziwym bloku `lsd.sh`** połączony z `pmcp.sh`: próba → start bez potwierdzenia fabryczny →
   „4. Confirm” odrzucone → retry → start w trybie `swdl` niczego nie ładuje i kasuje `last-boot` → potwierdzenie tylko w starcie próbnym →
   potwierdzony zestaw ładuje się zawsze → `DISABLED` wyłącza i blokuje potwierdzenie;
 - `lsd.sh` po łatce = fabryczny + jeden blok (sprawdzane `diff`);
 - pozostałości (`.carplaymaps-new-*`, `.carplaymaps-old-*`, `*.pmcp-*`, stare znaczniki `ok.*`) sprząta `install`; przerwany `restore`
   (katalog już przeniesiony) nie blokuje narzędzia;
-- karta ratunkowa: zdrowe radio bez zmian; radio `JAVA` → fabryczny `lsd.sh`, JAR-y usunięte, `DISABLED`; radio z Systemem RG →
-  fabryczny sterownik i `iap2.cfg`, `SYSTEM_ON` i `last-boot` usunięte; brak kopii albo brak `lsd.sh` → uczciwe `WYNIK=NIEPEWNY`;
+- karta ratunkowa: zdrowe radio bez zmian; radio `JAVA` → fabryczny `lsd.sh`, JAR-y usunięte, `DISABLED`; radio z systemem
+  prowadzenia → fabryczny sterownik i `iap2.cfg`, `SYSTEM_ON` i `last-boot` usunięte; brak kopii albo brak `lsd.sh` → uczciwe
+  `RESULT=UNSURE` (wynik niepewny);
 - menu GEM: liczba skryptów = liczba wpisów menu, składnia, dozwolone akcje, główny przycisk = `map-square-fps40`,
   wersja z ID buildu ta sama w `pmcp.sh`, menu i `BUILD-MANIFEST`.
 
@@ -180,15 +208,22 @@ są w trybie testowym pomijane (host liczy SHA-1 przez `shasum -a 1`); uprawnien
 
 ## Karta ratunkowa (paczka 0)
 
-Osobna karta (`installer/build_rescue.py`, instrukcja `PMCP_RATUNEK_README.txt` na karcie). Uzbrojony `Swdlautorun.txt` →
-radio samo wchodzi w tryb aktualizacji (`RUN_MODE=swdl`; nasz blok nic wtedy nie ładuje) → M.I.B. 3.6.0 `stuff.sh` → `pmcp-ratunek.sh`:
+Osobna karta (`installer/build_rescue.py`, instrukcja `PMCP_RESCUE_README.txt` na karcie). Uzbrojony `Swdlautorun.txt` →
+radio samo wchodzi w tryb aktualizacji (`RUN_MODE=swdl`; nasz blok nic wtedy nie ładuje) → M.I.B. 3.6.0 `stuff.sh` →
+`pmcp-rescue/pmcp-rescue.sh`:
 - fabryczny `lsd.sh` z `/mnt/app/carplaymaps/rollback/`;
 - usunięcie naszych JAR-ów;
 - `/mnt/persist/pmcp/DISABLED`, usunięcie `last-boot`;
-- System RG: fabryczny sterownik iAP2 i `iap2.cfg` z kopii (po rozmiarach), usunięcie `SYSTEM_ON`.
+- system prowadzenia: fabryczny sterownik iAP2 i `iap2.cfg` z kopii (po rozmiarach; zna oba nasze sterowniki: 743,196 B
+  z v1.0–v1.3 i 743,272 B z v1.4), usunięcie `SYSTEM_ON`.
 
 Obraz (etap A) zostaje, resztę sprząta potem „Remove everything” w GEM. Na zdrowym radiu bez pmcp skrypt nic nie zmienia, tylko zapisuje log
-`PMCP_RATUNEK_LOG.txt`. Autorun M.I.B. w trybie aktualizacji P4512 działa bez interakcji z HMI (sprawdzone w aucie, `WYNIK=OK`).
+`PMCP_RESCUE_LOG.txt` (`=== PMCP RESCUE start ===` … `RESULT=OK` albo `RESULT=UNSURE` … `=== PMCP RESCUE end ===`).
+Autorun M.I.B. w trybie aktualizacji P4512 działa bez interakcji z HMI (sprawdzone w aucie).
+
+Do v1.3 karta była po polsku (`pmcp-ratunek/`, `PMCP_RATUNEK_LOG.txt`, `WYNIK=OK` / `WYNIK=NIEPEWNY`); pomocniki kopiowania
+czytają obie nazwy logu. Karta ratunkowa sprzed v1.4 działa dalej w radiu ze sterownikiem z v1.3, ale **nie** przywraca
+sterownika z v1.4 (zna tylko 743,196 B): po aktualizacji do v1.4 zrób nową kartę ratunkową (pomocnik kopiowania, opcja 2).
 
 Po użyciu M.I.B. rozbraja kartę (`Swdlautorun.txt` → `_Swdlautorun.txt`), więc nie zapętli się. Ponowne uzbrojenie na
 komputerze (pomocnik kopiowania, opcja 3, albo ręczna zmiana nazwy). Od v1.2.0 instalator nie wymaga testu karty ratunkowej

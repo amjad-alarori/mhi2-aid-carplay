@@ -40,7 +40,7 @@ This is M.I.B. 3.6.0 plus the CarPlay-on-AID installer. Nothing starts by itself
   Remove everything (back to factory files) -> undo it all
 
 Photograph each result (the card is read-only in GEM, there is no log file).
-Do not copy the rescue card (pmcp-ratunek/, Swdlautorun.txt) onto this card.
+Do not copy the rescue card (pmcp-rescue/, Swdlautorun.txt) onto this card.
 """
 
 
@@ -55,7 +55,7 @@ def main():
     # 1. the installer build: exactly the files of its BUILD-MANIFEST.txt, nothing more, nothing less
     man = (sdb / "BUILD-MANIFEST.txt").read_text().splitlines()
     ver, entries = man[0], [l.split() for l in man[1:] if l.strip()]
-    if not ver.startswith("pmcp-0.3.0-mu1161-791-"):
+    if not ver.startswith("pmcp-0.4.0-mu1161-791-"):
         sys.exit("unexpected build version: %s" % ver)
     listed = set()
     for h, size, rel in entries:
@@ -88,7 +88,7 @@ def main():
         sys.exit("M.I.B. menu file is not the one build_sd.py extends")
     if (out / "Swdlautorun.txt").exists() or not (out / "_Swdlautorun.txt").exists():
         sys.exit("M.I.B. autorun is not in the disarmed state")
-    if (out / "pmcp").exists() or (out / "pmcp-ratunek").exists():
+    if (out / "pmcp").exists() or (out / "pmcp-rescue").exists() or (out / "pmcp-ratunek").exists():
         sys.exit("unexpected pmcp files in the M.I.B. zip")
     # 3. overlay: our menu screen (M.I.B. menu + one appended screen) and the installer
     for rel in sorted(listed):
@@ -100,7 +100,8 @@ def main():
     (out / "PMCP_INSTRUKCJA.txt").write_text(README % {"ver": ver})
     shutil.copyfile(sdb / "BUILD-MANIFEST.txt", out / "BUILD-MANIFEST.txt")   # run_tests.sh reads it from the card root
     # 4. final guards and the card manifest
-    for bad in ("Swdlautorun.txt", "pmcp-ratunek", "PMCP_RATUNEK_README.txt", "pmcp/ODBLOKUJ_ETAP_B"):
+    for bad in ("Swdlautorun.txt", "pmcp-rescue", "PMCP_RESCUE_README.txt", "pmcp-ratunek", "PMCP_RATUNEK_README.txt",
+                "pmcp/ODBLOKUJ_ETAP_B"):
         if (out / bad).exists():
             sys.exit("install card must not contain %s" % bad)
     lines = ["%s  %8d  %s" % (sha(p.read_bytes()), p.stat().st_size, p.relative_to(out))

@@ -15,7 +15,7 @@ W repo jest tylko to, co dotyczy tego radia. Całość opiera się na pracy proj
 > ryzyko. Nigdy nie wgrywaj firmware'u z innej gałęzi (cross-flash), żeby coś pasowało. Projekt niezwiązany z Volkswagenem,
 > Harmanem ani Apple.
 
-## Co działa (sprawdzone w aucie, październik 2026)
+## Co działa (sprawdzone w aucie, październik i listopad 2026)
 
 | Funkcja | Stan |
 |---|---|
@@ -23,13 +23,28 @@ W repo jest tylko to, co dotyczy tego radia. Całość opiera się na pracy proj
 | NavActiveIgnore: radio nie zatrzymuje i nie blokuje nawigacji z telefonu | działa |
 | Natywne prowadzenie VW z iPhone'a: dystans i czas do celu na pasku VW i w lewej tarczy | działa |
 | Natywna strzałka manewru i dystans do manewru (pojawia się po ruszeniu) | działa |
+| Strzałka na starcie trasy i przy skrętach na rondzie (zastępcza tam, gdzie ścisłe mapowanie nie daje żadnej) | działa |
+| Pasek odległości przed manewrem (odliczanie VW) i nazwa bieżącej ulicy | działa |
 | Natywne pasy ruchu VW, także pasy do zawracania (gdy aplikacja w telefonie wysyła pasy) | działa |
+| Prowadzenie przetrwa zawieszony odczyt sterownika iAP2 (czytnik restartuje swój proces roboczy zamiast się kończyć) | w aucie od 2026-11-03; odzyskiwanie sprawdzone na komputerze |
 | Przybliżanie mapy strzałkami na kierownicy | działa |
 | Tytuł i wykonawca utworu z CarPlay na AID | działa |
 | Przełączanie dzień/noc mapy na liczniku | działa |
 | Ograniczenie prędkości z telefonu (`showSpeedLimit=yes`) | na tym radiu nic nie pokazuje |
 
+Prowadzenie iAP2 nie przenosi liczbowego ograniczenia prędkości (badania
+[maxim-smirnov/mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster) na iOS 26.6/27);
+`showSpeedLimit=yes` tylko prosi telefon o narysowanie znaku w obrazie, a na tym radiu znaku nie widać.
+
 ![Mapa bez aktywnej nawigacji](docs/img/aid-carplay-2026-10/IMG_1102.jpg)
+
+v1.4 w aucie (2026-11-04), Apple Maps z natywnym prowadzeniem VW: nazwa ulicy na górnym pasku i w prawym zegarze,
+strzałka skrętu z paskiem VW odliczającym do manewru, czas i dystans do celu oraz pasy ruchu VW (drugie zdjęcie). Znak
+ograniczenia prędkości u góry pochodzi z samego auta (rozpoznawanie znaków i dane nawigacji VW), nie z telefonu.
+
+| | |
+|---|---|
+| ![Strzałka skrętu z paskiem na 40 m i nazwą ulicy](docs/img/aid-carplay-2026-11/IMG_1283.jpg) | ![Pasy ruchu i strzałka skrętu na 20 m](docs/img/aid-carplay-2026-11/IMG_1287.jpg) |
 
 Więcej zdjęć i interaktywny model ramki AID (gdzie obraz trafia na panel w każdym wariancie):
 [`docs/aid-frame-map.pl.html`](docs/aid-frame-map.pl.html), zdjęcia w [`docs/img/`](docs/img/).
@@ -40,7 +55,7 @@ Więcej zdjęć i interaktywny model ramki AID (gdzie obraz trafia na panel w ka
 |---|---|---|
 | [`patches/mu1161/`](patches/mu1161/) | warianty `core.so` strumienia CarPlay na licznik (safe area, URL, liczba klatek, klatki kluczowe, rozmiar fizyczny) z jednej przypiętej hashem bazy | `core.so` |
 | [`navactiveignore/`](navactiveignore/README.pl.md) | NavActiveIgnore z własnych klas HMI radia | Java (HMI) |
-| [`rg/`](rg/README.pl.md) | natywne prowadzenie: port rozwiązania tomasz-twardzicki z MU1427 na MU1161 (iAP2 RouteGuidance → BAP) | Java, sterownik iAP2, `iap2.cfg`, czytnik |
+| [`rg/`](rg/README.pl.md) | natywne prowadzenie (jedna paczka `rg`): port rozwiązania tomasz-twardzicki z MU1427 na MU1161 (iAP2 RouteGuidance → BAP) z jego pasami, paskiem odległości i nazwą ulicy, nasze pasy do zawracania i zastępcze strzałki, nasza bramka logu iAP2 i czytnik | Java, sterownik iAP2, `iap2.cfg`, czytnik |
 | [`nowplaying/`](nowplaying/README.pl.md) | tytuł i wykonawca utworu CarPlay na liczniku | Java (HMI) |
 | [`hmiextras/`](hmiextras/README.pl.md) | zoom z kierownicy i ponowne wysłanie dzień/noc do mapy na liczniku | Java (HMI) |
 | [`installer/`](installer/) | instalator na kartę SD uruchamiany z menu GEM w M.I.B., karta ratunkowa, testy na Macu | nic sam z siebie |
@@ -48,7 +63,7 @@ Więcej zdjęć i interaktywny model ramki AID (gdzie obraz trafia na panel w ka
 | [`scripts/`](scripts/) | czytniki obrazów firmware'u tylko do odczytu (QNX6, IFS, LZOZ, JXE → JAR), tester kart SD | nic |
 | [`firmware/`](firmware/) | hashe i notatki oficjalnej aktualizacji K4525 (jedyny dozwolony firmware) | nic |
 
-### Warianty układu mapy (GEM → `pmcp_zmien_wariant`)
+### Warianty układu mapy (GEM → `pmcp_advanced` → `pmcp_switch_layout`)
 
 Strumień ma 800×480 i leży 1:1 na panelu AID. Safe area: x / y / szerokość / wysokość.
 
@@ -77,6 +92,13 @@ Wszystkie warianty deklarują rozmiar fizyczny 240×144 mm. Zmiana wariantu podm
    4. Confirm → restart.** Od tej chwili tak już zostaje.
    Karta 2 jest tylko na awarię po potwierdzeniu. Po użyciu sama się rozbraja; opcja 3 pomocnika kopiowania ją uzbraja.
 
+**Aktualizacja z v1.0–v1.3:** karta 1 z tego wydania, „1. Check”, potem **3. Install all features or update** → restart
+(start próbny) → test → **4. Confirm**. Przycisk 3 zastępuje wcześniejszy sterownik, czytnik i paczki Java (`rglu` → `rg`)
+plikami z tej karty. Zrób też nową kartę 2: karty ratunkowe sprzed v1.4 nie przywracają sterownika iAP2 z v1.4.
+Eksperymentalne Android Auto z gałęzi `experimental` ta karta też zdejmuje: przycisk 3 (i „Remove everything”) najpierw
+przywraca fabryczny `gal` z kopii o sprawdzonym hashu; w menu zaawansowanym jest osobny przycisk „Remove experimental
+Android Auto”.
+
 Wcześniej potrzebny jest [M.I.B. w radiu i backup](docs/pl/01-mib-instalacja-backup.md). Instalator na karcie najpierw
 sprawdza każdy plik radia; przy innym firmware zatrzymuje się i niczego nie zmienia.
 
@@ -92,7 +114,8 @@ z karty SD. Zasady:
   zapisane. Nieznany stan oznacza brak zmian.
 - Pliki są kopiowane do katalogu przejściowego, sprawdzane i dopiero wtedy podmieniane. Wcześniej powstaje kopia plików
   fabrycznych. „Przywróć pliki fabryczne” działa zawsze.
-- **Paczki Java mają start próbny.** Po „Wlacz” i restarcie zmianę trzeba potwierdzić („Potwierdz”) w tym samym starcie.
+- **Paczki Java mają start próbny.** Po „3. Install all features” (albo „On ...” dla jednej paczki) i restarcie zmianę
+  trzeba potwierdzić („4. Confirm”) w tym samym starcie.
   Inaczej następny start jest znowu fabryczny.
 - Osobna **karta ratunkowa** (`installer/build_rescue.py`) startuje sama w trybie aktualizacji i przywraca fabryczne HMI
   bez potrzeby wchodzenia do GEM.
@@ -118,7 +141,8 @@ workspace/
 | Wejście | Źródło | Przypięte |
 |---|---|---|
 | bazowy `core.so` (profil MU1102/791, sha256 `00b48a8f…`) | paczka omonob w M.I.B. | commit `3a2526a3` |
-| natywne prowadzenie, miejsca łatek | tomasz-twardzicki/MHI2-Carplay-Maps | commit `024dd159` |
+| natywne prowadzenie, miejsca łatek | tomasz-twardzicki/MHI2-Carplay-Maps | commit `024dd159` (MU1427), `7925a83` (pasy), `1d69473` (pasek odległości, ulica, odzyskiwanie) |
+| tablica manewrów dla zastępczych strzałek | harman-f/mhi2_altscreen_carplay (`MibrRgiManeuvers.java`) | commit `c01bbdc` |
 | paczka referencyjna MU1161/791 | mathsls/MHI2-Carplay-Maps | commit `cdd576b0` |
 | konwerter JXE → JAR | luka-dev/jxe2jar | commit `9eeb45bb` |
 | menu GEM (`Launcher-sda0.esd`) | zip M.I.B. 3.6.0 | sha256 `4bfc6e72…` |
@@ -144,6 +168,46 @@ Po polsku w [`docs/pl/`](docs/pl/), po angielsku w [`docs/en/`](docs/en/):
 
 Katalogi składników mają `README.md` po angielsku i `README.pl.md` po polsku.
 
+## Eksperymentalnie: Android Auto na AID (w toku)
+
+Jeszcze w żadnym wydaniu. Pracujemy nad tym samym dla Android Auto: obraz Google Maps na AID i natywne strzałki VW
+z manewrów Google Maps, przez własną drogę MOST radia (bez dodatkowego adaptera). Stan na 2026-11-04, sprawdzony w aucie:
+
+Jak to działa:
+- fabryczny odbiornik Android Auto `gal` uruchamia mały wrapper z hookiem (na bazie
+  [mib-cluster-map](https://github.com/MacsInSpace/mib-cluster-map) MacsInSpace, bez ścieżek do karty SD);
+- hook proponuje telefonowi drugi ekran „cluster” 800×480 i oddaje jego strumień H.264 naszemu feederowi;
+- feeder przejmuje kanał wideo MOST i zapisuje klatki do tego samego ringu i `altscreen-most-bridge`, z których korzysta
+  CarPlay;
+- każdy nowy zestaw Android Auto rusza raz jako próba i zostaje dopiero po potwierdzeniu w GEM, jak paczki Java.
+
+Co działa:
+- obraz Google Maps na AID (26 minut jazdy bez problemów w trybie „AA 2”);
+- przełączenie z CarPlay na Android Auto bez restartu (feeder używa teraz ringu wideo CarPlay w miejscu; `dio_manager`
+  trzyma ten ring zmapowany, więc jego usuwanie zapełniało `/ramdisk`);
+- natywne strzałki VW z dystansem z manewrów Google Maps („gamma”). Hook tłumaczy komunikaty nawigacji Android Auto na
+  ten sam format skrzynki, który zapisuje czytnik CarPlay, a ten sam kod Java je pokazuje. W jeździe testowej rozpoznał
+  94 z 94 manewrów.
+
+Co jeszcze nie działa:
+- **gubiony obraz:** w mniej więcej połowie połączeń obraz startuje ciemny, z artefaktami, a AID potrafi też zgubić obraz
+  w trakcie jazdy (ekran ładowania). Ta sama przyczyna: telefon wysyła tylko jedną klatkę kluczową na sesję.
+  - Bez skutku próbowaliśmy: czekania 5 albo 10 s po przejęciu kanału MOST oraz przytrzymania i powtarzania tej klatki.
+  - Dalej: feeder dawkuje klatki do mostka (ok. 2 Mbit/s) i zapisuje przerwy w strumieniu (zbudowane i sprawdzone na
+    komputerze, jeszcze nie w aucie); inny `idr_pic_id` w powtórkach zostaje pomysłem. Własnego oprogramowania wideo radia
+    nie ruszamy.
+  - Obejście: ponownie podłączyć telefon.
+- brak strzałki VW na samym starcie trasy z Android Auto (krok „depart” nie jest jeszcze mapowany).
+
+Co ustaliliśmy:
+- ponowne wysłanie konfiguracji wideo do telefonu zrywa połączenie Android Auto po ok. 9 s;
+- cykl fokusu w radiu psuje sesję telefonu (spada do ok. 3 kl./s i po ok. dwóch minutach zrywa połączenie);
+- pełne komunikaty nawigacji Google Maps wymagają protokołu Android Auto 1.7;
+- dystans i czas do celu zostawiamy obrazowi Android Auto, który już je pokazuje.
+
+Karta z wydania v1.4 zawsze potrafi zdjąć to eksperymentalne Android Auto („Remove experimental Android Auto”; przycisk 3
+i „Remove everything” robią to najpierw): przywraca fabryczny `gal` tylko z kopii o fabrycznym hashu.
+
 ## Podziękowania
 
 Ten projekt nie powstałby bez:
@@ -154,15 +218,20 @@ Ten projekt nie powstałby bez:
   instalator, backup radia i dystrybucja paczki omonob.
 - **[tomasz-twardzicki/MHI2-Carplay-Maps](https://github.com/tomasz-twardzicki/MHI2-Carplay-Maps)**: miejsca łatek
   `core.so` (liczba klatek, klatki kluczowe, URL, safe area), klasy NavActiveIgnore i rozwiązanie natywnego prowadzenia
-  (łańcuch łatek sterownika, most HMI, czytnik RGI), które `rg/` przenosi na MU1161.
+  (łańcuch łatek sterownika, most HMI, czytnik RGI), które `rg/` przenosi na MU1161: MU1427 v1.2.0 (strzałki, dystans,
+  ETA, ścisłe mapowanie manewrów `LiveModel.map`), pasy ruchu z MU1367 v1.4.0 oraz pasek odległości, nazwa ulicy
+  i odzyskiwanie strumienia z MU1367 v1.4.3.
 - **[mathsls/MHI2-Carplay-Maps](https://github.com/mathsls/MHI2-Carplay-Maps)**: pierwszy build dla MU1161 + AID 791.
   Z niego pochodzą miejsca rozmiaru fizycznego i układ wariantu `map-square`.
 - **[ZzYunOvO/MHI2-Carplay-Maps](https://github.com/ZzYunOvO/MHI2-Carplay-Maps)**: zestaw narzędzi, na którym opierają
   się forki mathsls i tomasz-twardzicki.
 - **diasdio** i **ramasauskas**: poprawki klatek kluczowych i wysokości safe area, poprawka kolejki AUSAFE w moście MOST.
-- **harman-f**: parametry URL licznika (`showETA`, `maneuverLayout`, `showSpeedLimit`).
-- **[luka-dev](https://github.com/luka-dev/jxe2jar)**: jxe2jar i dekoder RGI.
-- **maxim-smirnov**: opis formatu kontenera LZOZ.
+- **harman-f**: parametry URL licznika (`showETA`, `maneuverLayout`, `showSpeedLimit`) oraz tablica manewrów iAP2 → VW BAP
+  z [mhi2_altscreen_carplay](https://github.com/harman-f/mhi2_altscreen_carplay) (`MibrRgiManeuvers.java`, commit
+  `c01bbdc`, GPL-3.0), z której korzystają zastępcze strzałki w `rg/`.
+- **[luka-dev](https://github.com/luka-dev/jxe2jar)**: jxe2jar, dekoder RGI i nazwy typów manewrów iAP2.
+- **maxim-smirnov**: opis formatu kontenera LZOZ oraz badania pokazujące, że prowadzenie iAP2 nie przenosi ograniczenia
+  prędkości ([mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster)).
 - **MacsInSpace**: wskazówka „Zapomnij to auto”, gdy licznik nie dostaje obrazu.
 - Społeczność **MQB Toolbox**: pierwotny pomysł NavActiveIgnore.
 
