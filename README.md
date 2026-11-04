@@ -85,50 +85,203 @@ Check the download against `SHA256SUMS.txt` from the same release if you want to
 
 ## Enable or disable native speed-limit text in the Green Menu
 
-after you finish the steps above successfully start with a working CarPlay map. Park, leave the ignition on and insert the card in **SD1**.
-The speed-limit reader is installed separately from the main **Install all features** procedure if you have an earlier version.
+Choose **Path 1** for a fresh installation of this project's CarPlay package. Choose **Path 2** to update an existing
+installation, including one that already has the speed-limit reader.
 
-### Install and enable for the first time
+Both paths require M.I.B. installed, a backup and an install card containing this feature's `sl` package and menu entries.
+Park, leave the ignition on and use **SD1**. Wait for each action's result before selecting **Back** or removing the card.
+The optional speed-limit reader is installed separately for both first-time users and updaters.
 
-If package `sl` is already installed and confirmed, continue at step 6.
+**MENU** opens the Green Menu when held for about 10 seconds. A reboot means holding the **volume knob for about
+10 seconds** until the head unit restarts. In results such as `This boot: set=... use=trial`, the set ID represented by
+`...` varies with the installed packages.
 
-1. Hold **MENU for about 10 seconds**, then open `=>M.I.B.<=` → `pmcp_CarPlay_AID`.
-2. Select **1. Check card and unit (read-only)**. For an existing working Java installation, expect
-   `PMCP_VERIFY_OK state=JAVA`.
-3. Open `pmcp_advanced` → `pmcp_etap_B_java`, then select
-   **Wlacz: Native VW map speed limit in road text (optional, output initially off)**.
-   Wait for `PMCP_JAVA_ON_OK package=sl`.
-4. Hold the **volume knob for about 10 seconds** to reboot. This first start is the reader's trial boot.
-   Check the normal menus, audio, CarPlay map and guidance. In `pmcp_advanced`, select
-   **Native speed limit: saved mode and reader snapshot (read-only)** to check that the reader has started.
-5. During that **same trial boot**, return to `pmcp_CarPlay_AID` and select
-   **4. Confirm: everything works (only in the first start after 3)**. Wait for `PMCP_JAVA_CONFIRM_OK`.
-   This main-menu Confirm button also confirms the manually added speed-limit package.
-6. Open `pmcp_advanced` and select
-   **Native speed limit: enable next-road text after installing and confirming sl**.
+### Path 1 — First-time installation
+
+This path covers a fresh CarPlay installation followed by installation and activation of the speed-limit reader.
+
+#### Install the CarPlay map and guidance
+
+1. Insert the new install card in **SD1**. Hold **MENU for about 10 seconds**.
+2. Select `=>M.I.B.<=`, then select `pmcp_CarPlay_AID`.
+3. Select **1. Check card and unit (read-only)**. Expect `PMCP_VERIFY_OK state=STOCK`.
+   A fresh installation starts from `STOCK`. For `VIDEO` or `JAVA`, use **Path 2**.
+   For `PARTIAL` or `UNKNOWN`, pause here and retain the result for troubleshooting.
+4. Select **Back** to return to `pmcp_CarPlay_AID`. Select **2. Install the CarPlay map on the AID**.
+   Wait for `PMCP_INSTALL_OK stage=A variant=map-square-fps40` followed by the build version.
+5. Hold the **volume knob for about 10 seconds** to reboot. Connect the iPhone through CarPlay, start navigation
+   and select the AID's navigation/map view. Check that the CarPlay map appears on the cluster.
+6. Hold **MENU for about 10 seconds**. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`.
+   Select **3. Install all features or update: main map, arrows, lanes, ETA, zoom, song title**.
+   Wait until the final result is `PMCP_ALL_ON_OK` and the screen asks for a restart.
+7. Hold the **volume knob for about 10 seconds** to reboot into the Java trial.
+   Check the head unit menus, audio, CarPlay connection, cluster map and navigation guidance.
+8. During this same boot, hold **MENU for about 10 seconds**. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`.
+   Select **Status (read-only)**. Expect `Unit state: JAVA`, `This boot: set=... use=trial` and `PMCP_STATUS_OK`.
+9. Select **Back** to return to `pmcp_CarPlay_AID`.
+   Select **4. Confirm: everything works (only in the first start after 3)**. Wait for `PMCP_JAVA_CONFIRM_OK`.
+10. Hold the **volume knob for about 10 seconds** to reboot again.
+    Hold **MENU for about 10 seconds**, select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then **Status (read-only)**.
+    Expect `Unit state: JAVA`, `This boot: set=... use=yes` and `PMCP_STATUS_OK`.
+
+#### Install and enable the speed-limit reader
+
+1. Select **Back** to return to `pmcp_CarPlay_AID`. Select `pmcp_advanced`, then `pmcp_etap_B_java`.
+2. Select **Wlacz: Native VW map speed limit in road text (optional, output initially off)**.
+   Wait for `PMCP_JAVA_ON_OK package=sl` followed by the new set ID.
+3. Hold the **volume knob for about 10 seconds** to reboot into the reader's Java trial.
+   Check the menus, audio, CarPlay map and guidance again.
+4. During this same boot, hold **MENU for about 10 seconds**. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`.
+   Select **Status (read-only)**. Expect `Unit state: JAVA`, `This boot: set=... use=trial` and `PMCP_STATUS_OK`.
+5. Select **Back** to return to `pmcp_CarPlay_AID`. Select `pmcp_advanced`.
+   Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+   Expect `Saved native speed-limit mode: off (default)`, a reader snapshot containing
+   `schema=pmcp-native-speedlimit-v1`, and `PMCP_SPEEDLIMIT_STATUS_OK`.
+6. Select **Back** until the `pmcp_CarPlay_AID` menu is shown.
+   Select **4. Confirm: everything works (only in the first start after 3)** during this same trial boot.
+   Wait for `PMCP_JAVA_CONFIRM_OK`. This button also confirms the manually added reader.
+7. Select **Back** to return to `pmcp_CarPlay_AID`. Select `pmcp_advanced`.
+   Select **Native speed limit: enable next-road text after installing and confirming sl**.
    Wait for `PMCP_SPEEDLIMIT_MODE_OK mode=turnto`.
-7. Connect CarPlay and start Google Maps guidance. Select the navigation view on the AID.
-   Once VW supplies a valid native limit, text such as **Limit 50 km/h** appears in the navigation caption.
-8. Reboot once more to check automatic activation. In `pmcp_advanced`, open
-   **Native speed limit: saved mode and reader snapshot (read-only)** and look for
-   `Saved native speed-limit mode: turnto`. The saved selection applies after each reboot.
+8. Select **Back** to return to `pmcp_advanced`.
+   Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+   Expect `Saved native speed-limit mode: turnto` and `PMCP_SPEEDLIMIT_STATUS_OK`.
+   After the reader's next refresh, its snapshot also shows `output_mode=turnto` and `turnto_enabled=1`.
+9. Exit the Green Menu using **Back**, connect CarPlay and start Google Maps guidance.
+   Select the AID's navigation/map view. Once VW supplies a valid native limit, expect text such as **Limit 50 km/h**.
+10. Hold the **volume knob for about 10 seconds** to reboot and check the saved activation.
+    Hold **MENU for about 10 seconds**, select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then `pmcp_advanced`.
+    Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+    Expect `Saved native speed-limit mode: turnto` and `PMCP_SPEEDLIMIT_STATUS_OK`.
+    Reconnect CarPlay, start Google Maps guidance and check the cluster text again after a valid native update.
 
-If confirmation was missed and the unit used its factory fallback, select **5. Try again: the next start is a new trial**
-in `pmcp_CarPlay_AID`, reboot, repeat the operation checks and confirm during that new trial boot.
+### Path 2 — Update an existing installation
+
+Use this path for an existing installation of this project's CarPlay package. An installed speed-limit reader needs
+its original matching card for removal before installing a newer reader. The installer checks exact reader hashes,
+so the matching old card is part of the update procedure.
+
+#### Prepare an installed speed-limit reader for update
+
+For a CarPlay installation that has never had the speed-limit reader, begin with **Install the update and reader** below.
+For an installed `sl` reader, complete these steps with its matching old card.
+
+1. Insert the old install card in **SD1**. Hold **MENU for about 10 seconds**.
+2. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then `pmcp_advanced`.
+3. Select **Native speed limit: disable road text**. Wait for `PMCP_SPEEDLIMIT_MODE_OK mode=off`.
+4. Select **Back** to return to `pmcp_advanced`. Select `pmcp_etap_B_java`.
+5. Select **Wylacz: Native VW map speed limit in road text (optional, output initially off)**.
+   Wait for `PMCP_JAVA_OFF_OK package=sl`.
+6. Hold the **volume knob for about 10 seconds** to reboot. Check that the head unit and the existing CarPlay features work.
+7. Hold **MENU for about 10 seconds**. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then **Status (read-only)**.
+   Expect `PMCP_STATUS_OK` and read `Unit state: JAVA` or `Unit state: VIDEO`.
+   `VIDEO` means removal returned the unit to its map-only installation, ready for the new card.
+   For `JAVA`, also read `This boot: set=... use=...`.
+
+   - For `use=yes`, the remaining Java set is already confirmed.
+   - For `use=trial`, check normal operation, select **Back**, select
+     **4. Confirm: everything works (only in the first start after 3)** and wait for `PMCP_JAVA_CONFIRM_OK`.
+     Reboot with the volume knob, reopen **MENU** → `=>M.I.B.<=` → `pmcp_CarPlay_AID` → **Status (read-only)**
+     and expect `This boot: set=... use=yes`.
+8. Exit the Green Menu using **Back** and replace the old card with the new install card in **SD1**.
+
+For the earlier **R3 trial card**, its controls are under `=>M.I.B.<=` → `pmcp_native_speedlimit`.
+Select **7. Disable both limit text tests / restore roads** and wait for `PMCP_SL_TEXT_OFF_OK`.
+Then select **8. Remove reader / restore previous Java set** and wait for `PMCP_SL_REMOVE_OK`.
+Reboot using the volume knob, check the restored CarPlay installation, then insert the new install card in **SD1**.
+
+#### Install the update and reader
+
+1. Insert the new install card in **SD1**. Hold **MENU for about 10 seconds**.
+2. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then **1. Check card and unit (read-only)**.
+   Expect `PMCP_VERIFY_OK state=JAVA` for an existing Java installation or `PMCP_VERIFY_OK state=VIDEO`
+   for a map-only installation. For `STOCK`, follow **Path 1**. For `PARTIAL` or `UNKNOWN`, pause here and resolve
+   that state with the matching previous card or the recovery procedure before continuing.
+3. Select **Back** to return to `pmcp_CarPlay_AID`.
+   Select **3. Install all features or update: main map, arrows, lanes, ETA, zoom, song title**.
+   Expect either `PMCP_ALL_ON_OK` with a restart instruction, or
+   `PMCP_ALL_ON_OK (everything was already on, nothing changed)`.
+4. Follow the result shown by **3. Install all features or update**.
+
+   - If the screen shows `PMCP_ALL_ON_OK` and asks for a restart, hold the **volume knob for about 10 seconds**
+     to reboot. Check the menus, audio, CarPlay map and guidance. Hold **MENU for about 10 seconds**, select
+     `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then **Status (read-only)**.
+   - If the screen shows `PMCP_ALL_ON_OK (everything was already on, nothing changed)`, keep the current boot.
+     Select **Back** to return to `pmcp_CarPlay_AID`, then select **Status (read-only)**.
+5. On the Status screen, expect `Unit state: JAVA` and `PMCP_STATUS_OK`, then read `This boot: set=... use=...`.
+
+   - For `use=trial`, select **Back**, select **4. Confirm: everything works (only in the first start after 3)**
+     during this same boot and wait for `PMCP_JAVA_CONFIRM_OK`.
+   - For `use=yes`, the set is already confirmed and ready for the reader installation.
+6. Select **Back** until `pmcp_CarPlay_AID` is shown. Select `pmcp_advanced`, then `pmcp_etap_B_java`.
+7. Select **Wlacz: Native VW map speed limit in road text (optional, output initially off)**.
+   Wait for `PMCP_JAVA_ON_OK package=sl` followed by the set ID.
+8. Hold the **volume knob for about 10 seconds** to reboot. Check the menus, audio, CarPlay map and guidance.
+9. Hold **MENU for about 10 seconds**. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then **Status (read-only)**.
+   Expect `Unit state: JAVA` and `PMCP_STATUS_OK`, then read `This boot: set=... use=...`.
+
+   - For `use=trial`, select **Back**, select **4. Confirm: everything works (only in the first start after 3)**
+     during this same boot and wait for `PMCP_JAVA_CONFIRM_OK`.
+   - For `use=yes`, this exact set was confirmed previously and is ready to enable.
+10. Select **Back** until `pmcp_CarPlay_AID` is shown. Select `pmcp_advanced`.
+    Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+    Expect `Saved native speed-limit mode: off (default)`, a reader snapshot containing
+    `schema=pmcp-native-speedlimit-v1`, and `PMCP_SPEEDLIMIT_STATUS_OK`.
+11. Select **Back** to return to `pmcp_advanced`.
+    Select **Native speed limit: enable next-road text after installing and confirming sl**.
+    Wait for `PMCP_SPEEDLIMIT_MODE_OK mode=turnto`.
+12. Select **Back** to return to `pmcp_advanced`.
+    Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+    Expect `Saved native speed-limit mode: turnto` and `PMCP_SPEEDLIMIT_STATUS_OK`.
+    After the reader's next refresh, its snapshot also shows `output_mode=turnto` and `turnto_enabled=1`.
+13. Exit the Green Menu using **Back**, connect CarPlay and start Google Maps guidance.
+    Select the AID's navigation/map view. After a valid native update, expect text such as **Limit 50 km/h**.
+14. Hold the **volume knob for about 10 seconds** to reboot and check the saved activation.
+    Hold **MENU for about 10 seconds**, select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then `pmcp_advanced`.
+    Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+    Expect `Saved native speed-limit mode: turnto` and `PMCP_SPEEDLIMIT_STATUS_OK`.
+    Reconnect CarPlay, start Google Maps guidance and check the cluster text after a valid native update.
+
+#### Confirmation and retry results
+
+`This boot: set=... use=trial` requires confirmation during that boot after the operation checks pass.
+`This boot: set=... use=yes` means the exact set is already confirmed. Pressing Confirm for that set reports
+`PMCP_FAIL=SET_ALREADY_CONFIRMED_...`; the set remains confirmed and can proceed to activation.
+
+For a missed confirmation followed by `This boot: set=... use=no`, use this sequence.
+
+1. Hold **MENU for about 10 seconds**. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`.
+2. Select **5. Try again: the next start is a new trial**. Wait for `PMCP_JAVA_RETRY_OK`.
+3. Hold the **volume knob for about 10 seconds** to reboot. Check the menus, audio, CarPlay map and guidance.
+4. Hold **MENU for about 10 seconds**. Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then **Status (read-only)**.
+   Expect `This boot: set=... use=trial` and `PMCP_STATUS_OK`.
+5. Select **Back** and select **4. Confirm: everything works (only in the first start after 3)** during this same boot.
+   Wait for `PMCP_JAVA_CONFIRM_OK`.
+
+Resume the installation phase that required this confirmation. A base CarPlay set proceeds to reader installation.
+An installed and confirmed `sl` reader can use the complete **Enable it again after disabling** procedure below.
 
 ### Disable the speed-limit text
 
 1. Hold **MENU for about 10 seconds**, then open `=>M.I.B.<=` → `pmcp_CarPlay_AID` → `pmcp_advanced`.
 2. Select **Native speed limit: disable road text**. Wait for `PMCP_SPEEDLIMIT_MODE_OK mode=off`.
-3. The reader restores the original street text on its next refresh, normally within about one second. The off setting
-   is saved across reboots. To check it, select **Native speed limit: saved mode and reader snapshot (read-only)**
-   and look for `Saved native speed-limit mode: off`.
+3. Select **Back** to return to `pmcp_advanced`.
+   Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+   Expect `Saved native speed-limit mode: off` and `PMCP_SPEEDLIMIT_STATUS_OK`.
+4. Exit the Green Menu using **Back**. The reader restores the original street text on its next refresh,
+   normally within about one second. The off selection is saved across reboots.
 
 ### Enable it again after disabling
 
-1. Open `=>M.I.B.<=` → `pmcp_CarPlay_AID` → `pmcp_advanced`.
+1. Insert the current matching install card in **SD1**. Hold **MENU for about 10 seconds**.
+   Select `=>M.I.B.<=`, then `pmcp_CarPlay_AID`, then `pmcp_advanced`.
 2. Select **Native speed limit: enable next-road text after installing and confirming sl** and wait for
-   `PMCP_SPEEDLIMIT_MODE_OK mode=turnto`. The reader applies the saved selection on its next refresh.
+   `PMCP_SPEEDLIMIT_MODE_OK mode=turnto`.
+3. Select **Back** to return to `pmcp_advanced`.
+   Select **Native speed limit: saved mode and reader snapshot (read-only)**.
+   Expect `Saved native speed-limit mode: turnto` and `PMCP_SPEEDLIMIT_STATUS_OK`.
+4. Exit the Green Menu using **Back**, connect CarPlay, start Google Maps guidance and select the AID navigation/map view.
+   The reader applies the saved selection on its next refresh and shows the limit after a valid native update.
 
 The native limit source, display behavior and package removal procedure are described in the
 [native speed-limit guide](docs/en/16-native-speed-limits.md).
