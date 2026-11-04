@@ -27,7 +27,7 @@ This repository holds only what is specific to this head unit. It builds on the 
 | CarPlay track title and artist on the AID | works |
 | Day/night switching of the cluster map | works |
 | Speed limit from the phone (`showSpeedLimit=yes`) | shows nothing on this unit |
-| Optional native VW map speed limit in navigation text during CarPlay guidance | 50 → 70 km/h update confirmed on an e-Golf AID 795A. Persistent activation awaits vehicle validation. [Details](docs/en/16-native-speed-limits.md) |
+| Optional native VW map speed limit in navigation text during CarPlay guidance | 50 → 70 km/h update confirmed on an e-Golf AID 795A. [Details](docs/en/16-native-speed-limits.md) |
 
 ![Map without active navigation](docs/img/aid-carplay-2026-10/IMG_1102.jpg)
 
