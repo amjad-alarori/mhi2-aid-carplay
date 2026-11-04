@@ -83,6 +83,57 @@ on the card checks every file of your head unit first. On any other firmware it 
 
 Check the download against `SHA256SUMS.txt` from the same release if you want to be sure it is complete.
 
+## Enable or disable native speed-limit text in the Green Menu
+
+Start with a working CarPlay map and guidance installation. Use an install card built with this feature, containing the
+optional `sl` package and the menu buttons below. Park, leave the ignition on and insert the card in **SD1**.
+The speed-limit reader is installed separately from the main **Install all features** procedure.
+
+### Install and enable for the first time
+
+If package `sl` is already installed and confirmed, continue at step 6.
+
+1. Hold **MENU for about 10 seconds**, then open `=>M.I.B.<=` → `pmcp_CarPlay_AID`.
+2. Select **1. Check card and unit (read-only)**. For an existing working Java installation, expect
+   `PMCP_VERIFY_OK state=JAVA`.
+3. Open `pmcp_advanced` → `pmcp_etap_B_java`, then select
+   **Wlacz: Native VW map speed limit in road text (optional, output initially off)**.
+   Wait for `PMCP_JAVA_ON_OK package=sl`.
+4. Hold the **volume knob for about 10 seconds** to reboot. This first start is the reader's trial boot.
+   Check the normal menus, audio, CarPlay map and guidance. In `pmcp_advanced`, select
+   **Native speed limit: saved mode and reader snapshot (read-only)** to check that the reader has started.
+5. During that **same trial boot**, return to `pmcp_CarPlay_AID` and select
+   **4. Confirm: everything works (only in the first start after 3)**. Wait for `PMCP_JAVA_CONFIRM_OK`.
+   This main-menu Confirm button also confirms the manually added speed-limit package.
+6. Open `pmcp_advanced` and select
+   **Native speed limit: enable next-road text after installing and confirming sl**.
+   Wait for `PMCP_SPEEDLIMIT_MODE_OK mode=turnto`.
+7. Connect CarPlay and start Google Maps guidance with the VW route ended. Select the navigation view on the AID.
+   Once VW supplies a valid native limit, text such as **Limit 50 km/h** appears in the navigation caption.
+8. Reboot once more to check automatic activation. In `pmcp_advanced`, open
+   **Native speed limit: saved mode and reader snapshot (read-only)** and look for
+   `Saved native speed-limit mode: turnto`. The saved selection applies after each reboot.
+
+If confirmation was missed and the unit used its factory fallback, select **5. Try again: the next start is a new trial**
+in `pmcp_CarPlay_AID`, reboot, repeat the operation checks and confirm during that new trial boot.
+
+### Disable the speed-limit text
+
+1. Hold **MENU for about 10 seconds**, then open `=>M.I.B.<=` → `pmcp_CarPlay_AID` → `pmcp_advanced`.
+2. Select **Native speed limit: disable road text**. Wait for `PMCP_SPEEDLIMIT_MODE_OK mode=off`.
+3. The reader restores the original street text on its next refresh, normally within about one second. The off setting
+   is saved across reboots. To check it, select **Native speed limit: saved mode and reader snapshot (read-only)**
+   and look for `Saved native speed-limit mode: off`.
+
+### Enable it again after disabling
+
+1. Open `=>M.I.B.<=` → `pmcp_CarPlay_AID` → `pmcp_advanced`.
+2. Select **Native speed limit: enable next-road text after installing and confirming sl** and wait for
+   `PMCP_SPEEDLIMIT_MODE_OK mode=turnto`. The reader applies the saved selection on its next refresh.
+
+The native limit source, display behavior and package removal procedure are described in the
+[native speed-limit guide](docs/en/16-native-speed-limits.md).
+
 ## Build the cards yourself (advanced)
 
 Instead of the ready-made cards, you can build them from your own unit's M.I.B. backup (macOS; Linux works for
