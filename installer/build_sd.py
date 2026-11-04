@@ -37,7 +37,8 @@ JAVA_PACKAGES = [("nai", "NavActiveIgnore (mapa na AID przy prowadzeniu w iPhoni
                  ("dn", "Dzien/noc mapy CarPlay na AID (ponowne wyslanie po starcie)"),
                  # rg + Tomasz's native lane guidance + U-turn lanes as VW 114/146 (rg/lanes/uturn.py), confirmed in the
                  # car (2026-10-31); swaps with rg
-                 ("rglu", "Prowadzenie + pasy ruchu z zawracaniem (zamiast rg, wymaga Systemu RG)")]
+                 ("rglu", "Prowadzenie + pasy ruchu z zawracaniem (zamiast rg, wymaga Systemu RG)"),
+                 ("sl", "Native VW map speed limit in road text (optional, output initially off)")]
 # Tried and not shipped (docs/en/14-fast-start-audit.md, branch experimental): lanes without U-turns rgl (replaced by
 # rglu), day/night v2 and the cluster day/night module (no effect on Google Maps), AID fast start kf..kf4.
 # Packages that replace the same classes: never in one set, java-on of one swaps out the other (pmcp.sh java_alternative).
@@ -85,6 +86,9 @@ PAYLOAD = {
     # rg/build.sh ... lanes-uturn (lanes + U-turn lanes 114/146)
     "JAR_rglu": (PROJ / "build/rg-mu1161-lanes-uturn/pmcp-rg.jar",
                  "72ab72214ee91a0d95ba0ec4d57a65cbee95d8ee82cb23af82fcb6b082591a33", 38529, "jars/pmcp-rglu.jar"),
+    # Optional native-map limit reader, output is enabled separately after confirming the Java set.
+    "JAR_sl": (PROJ / "build/sl-mu1161/pmcp-sl.jar",
+               "79bca4e4ec9f69d8536960d096725c5e9e95b2012dd8033c97319bb1d22fb002", 18202, "jars/pmcp-sl.jar"),
     "RG_DRIVER": (PROJ / "build/rg-mu1161/ipod-drvr-iap2.so",
                   "76926bde9bdf1e06fdfe57fd324bbd8772bcb2a98a58ac444b4822e25a331b48", 743196, "rg/ipod-drvr-iap2.so"),
     "RG_CFG": (PROJ / "build/rg-mu1161/iap2.cfg",
@@ -306,7 +310,10 @@ def menu_entries():
     adv = [("diag", None, "0. Diagnostyka (tylko odczyt, zrob zdjecia ekranu)"),
            ("timeline", TIMELINE, "Start timeline: seconds from unit start to CarPlay, MOST, navigation (read-only)"),
            ("rglast", RGLAST, "RG last maneuver: what the iPhone sent and which VW arrow it gives (read-only)"),
-           ("navdiag", NAVDIAG, "Navigation diagnostics: why the VW navigation does not start (read-only)")]
+           ("navdiag", NAVDIAG, "Navigation diagnostics: why the VW navigation does not start (read-only)"),
+           ("speedlimit-on", "speedlimit-mode turnto", "Native speed limit: enable next-road text after installing and confirming sl"),
+           ("speedlimit-off", "speedlimit-mode off", "Native speed limit: disable road text"),
+           ("speedlimit-status", "speedlimit-status", "Native speed limit: saved mode and reader snapshot (read-only)")]
     inst = [("install-" + v, "install " + v, "Instaluj obraz: " + v) for v in VARIANTS if v != START_VARIANT]
     sw = [("switch-" + v, "switch " + v, "Zmien wariant na: " + v) for v in VARIANTS]
     rg = [("rg-system-on", "rg-system-on", "System RG: wlacz (sterownik iAP2, iap2.cfg, czytnik)"),
@@ -317,10 +324,11 @@ def menu_entries():
 
 
 # actions of "Install all features or update", in order: the main map (an older install gets START_VARIANT, already
-# there: skipped), the route guidance system (rglu needs it), then every package except rg (rglu replaces it, also on an
-# older install with rg). Steps already done answer *_ALREADY_* and are skipped, so the same button brings any earlier
+# there: skipped), the route guidance system (rglu needs it), then the standard packages. The native speed-limit
+# reader is installed separately and its output stays off until explicitly enabled. Steps already done answer
+# *_ALREADY_* and are skipped, so the same button brings any earlier
 # pmcp install to this card's set.
-ALL_ON = ["switch_" + START_VARIANT, "rg-system-on"] + ["java-on_" + n for n, _ in JAVA_PACKAGES if n != "rg"]
+ALL_ON = ["switch_" + START_VARIANT, "rg-system-on"] + ["java-on_" + n for n, _ in JAVA_PACKAGES if n not in {"rg", "sl"}]
 
 
 def menu_script(args, label):

@@ -12,9 +12,12 @@
 #   pmcp.sh java-retry          allow one more trial boot of the current Java set
 #   pmcp.sh rg-system-on        package E system part: patched iAP2 driver, iap2.cfg [ident], route guidance reader
 #   pmcp.sh rg-system-off       factory iAP2 driver and iap2.cfg back
+#   pmcp.sh speedlimit-mode MODE  optional native limit in road text: off (default), street or turnto
+#   pmcp.sh speedlimit-status   read-only saved mode and native-limit reader snapshot
 #   pmcp.sh restore             back to the exact factory files
 #
-# Nothing is written before every input has been hashed and every unit file matches a known state.
+# Install/remove actions hash their inputs and require a known unit state. speedlimit-mode off remains available
+# independently of those checks, including during a factory fallback boot.
 # Stage A never touches the Java HMI, so GEM (and this tool) stays reachable even if the video part fails.
 # Java packages load through one fixed lsd.sh block with a trial boot (see build_sd.py LSD_PRE): a new set loads
 # once; it stays only if the user confirms it in GEM during that boot (java-confirm), otherwise the next boot is
@@ -78,6 +81,9 @@ LSD="$APP/eso/hmi/lsd/lsd.sh"
 JARS="$APP/eso/hmi/lsd/jars"
 ROOT="$APP/carplaymaps"
 PERSIST="$MMX/mnt/persist/pmcp"
+SL_MODE="$PERSIST/native-speedlimit-mode"
+SL_STATE="$MMX/ramdisk/pmcp-speedlimit.state"
+SL_LOCK="$MMX/ramdisk/pmcp-speedlimit.lock"
 DRV="$APP/armle/lib/dll/ipod-drvr-iap2.so"
 CFG="$MMX/mnt/system/etc/mm/iap2.cfg"
 RGDIR="$ROOT/rg"
@@ -104,6 +110,18 @@ fail() {
     say "PMCP_FAIL=$1"
     say "Nothing after this point was done."
     exit 1
+}
+
+# Serialize mode changes with Java-set changes. Only the successful mkdir owner installs cleanup.
+# /ramdisk exists on MMX and disappears at reboot, including a lock left by sudden power loss.
+speedlimit_lock() {
+    mkdir "$SL_LOCK" 2>/dev/null || fail "SPEEDLIMIT_LOCK_BUSY_OR_RAMDISK_UNAVAILABLE"
+    trap 'rm -f "$SL_MODE.pmcp-new" 2>/dev/null; rm -rf "$SL_LOCK" 2>/dev/null' 0
+    trap 'exit 1' 1 2 15
+}
+
+clear_speedlimit_mode() {
+    rm -f "$SL_MODE" "$SL_MODE.pmcp-new" || fail "SPEEDLIMIT_MODE_REMOVE_FAILED"
 }
 
 # ---------------------------------------------------------------- hashing
@@ -602,6 +620,8 @@ do_java_on() {
     check "$PAYLOAD/$J_PATH" "$J_SHA" "$J_SIZE" "JAR_$ARG"
     check "$PAYLOAD/$LJ_PATH" "$LJ_SHA" "$LJ_SIZE" LSD_JAVA
     remount_rw
+    # A newly installed reader always starts with output off, even after a stale configuration file.
+    [ "$ARG" != sl ] || clear_speedlimit_mode
     rm -f "$JARS/$JFILE.pmcp-new" "$LSD.pmcp-new" "$ROOT"/*.pmcp-new 2>/dev/null
     cp "$PAYLOAD/$J_PATH" "$JARS/$JFILE.pmcp-new" || fail "JAR_STAGE_FAILED"
     chmod 644 "$JARS/$JFILE.pmcp-new" || fail "CHMOD_FAILED"
@@ -644,6 +664,8 @@ do_java_off() {
     new=""
     for n in $cur; do [ "$n" = "$ARG" ] || new="$new${new:+ }$n"; done
     remount_rw
+    # The currently loaded helper sees the absent mode and restores factory text before the reboot.
+    [ "$ARG" != sl ] || clear_speedlimit_mode
     if [ -z "$new" ]; then
         # last package: factory lsd.sh first (switch off), then remove the JAR and set files
         cp "$ROOT/rollback/lsd.sh" "$LSD.pmcp-rb" || fail "LSD_RESTORE_STAGE_FAILED"
@@ -695,6 +717,55 @@ do_java_retry() {
     rm -f "$PERSIST/trial.$set_id" "$PERSIST/DISABLED" || fail "RETRY_MARKER_REMOVE_FAILED"
     flush
     say "PMCP_JAVA_RETRY_OK set=$set_id (the next boot is a new trial)"
+}
+
+do_speedlimit_mode() {
+    case "$ARG" in off|street|turnto) ;; *) fail "UNKNOWN_SPEEDLIMIT_MODE_$ARG" ;; esac
+    if [ "$ARG" != off ]; then
+        selftest
+        firmware_identity
+        detect_state
+        [ "$STATE" = JAVA ] || fail "SPEEDLIMIT_NEEDS_JAVA_STATE_$STATE"
+        case " `current_set` " in *" sl "*) ;; *) fail "SPEEDLIMIT_PACKAGE_NOT_INSTALLED" ;; esac
+        set_id=`boot_set_id`
+        [ ! -e "$PERSIST/DISABLED" ] || fail "JAVA_DISABLED_BY_RESCUE_CARD"
+        [ -e "$PERSIST/ok.$set_id" ] || fail "SPEEDLIMIT_CONFIRM_JAVA_SET_FIRST"
+        case "`cat "$PERSIST/last-boot" 2>/dev/null`" in
+            "set=$set_id use=yes"|"set=$set_id use=trial") ;;
+            *) fail "SPEEDLIMIT_NOT_RUNNING_THIS_SET_REBOOT_FIRST" ;;
+        esac
+    elif [ ! -e "$SL_MODE" ]; then
+        say "PMCP_SPEEDLIMIT_MODE_OK mode=off (no configuration file)"
+        return
+    fi
+    [ -d "$PERSIST" ] || fail "SPEEDLIMIT_PERSIST_DIRECTORY_MISSING"
+    [ ! -d "$SL_MODE" ] || fail "SPEEDLIMIT_MODE_IS_DIRECTORY"
+    rm -f "$SL_MODE.pmcp-new" || fail "SPEEDLIMIT_MODE_STAGE_CLEANUP_FAILED"
+    ( printf '%s\n' "$ARG" > "$SL_MODE.pmcp-new" ) || fail "SPEEDLIMIT_MODE_STAGE_FAILED"
+    mv "$SL_MODE.pmcp-new" "$SL_MODE" || fail "SPEEDLIMIT_MODE_COMMIT_FAILED"
+    flush
+    say "PMCP_SPEEDLIMIT_MODE_OK mode=$ARG (saved across reboots)"
+    say "The reader applies the mode on its next poll. Native limit data may arrive later."
+}
+
+do_speedlimit_status() {
+    _sl_label="invalid (reader output is off)"
+    if [ ! -e "$SL_MODE" ]; then
+        _sl_label="off (default)"
+    elif [ -f "$SL_MODE" ] && IFS= read -r _sl_saved < "$SL_MODE"; then
+        # Match the helper's exact LF-terminated bytes, including one newline and no trailing data.
+        case "$_sl_saved/`size_of "$SL_MODE"`" in
+            off/4|street/7|turnto/7) _sl_label="$_sl_saved" ;;
+        esac
+    fi
+    say "Saved native speed-limit mode: $_sl_label"
+    if [ -s "$SL_STATE" ]; then
+        say "Reader snapshot ($SL_STATE):"
+        while IFS= read -r _sl_line; do say "  $_sl_line"; done < "$SL_STATE"
+    else
+        say "Reader snapshot unavailable (reader not started or no snapshot yet)."
+    fi
+    say "PMCP_SPEEDLIMIT_STATUS_OK"
 }
 
 do_rg_system_on() {
@@ -838,6 +909,10 @@ do_status() {
 }
 
 say "pmcp $PMCP_VERSION: $ACTION $ARG"
+# Sharing this lock prevents an enable check from racing with a Java-set change or a full restore.
+case "$ACTION" in
+    speedlimit-mode|java-on|java-off|java-retry|java-confirm|restore) speedlimit_lock ;;
+esac
 case "$ACTION" in
     verify)     do_verify ;;
     install)    do_install ;;
@@ -848,6 +923,8 @@ case "$ACTION" in
     java-confirm) do_java_confirm ;;
     rg-system-on)  do_rg_system_on ;;
     rg-system-off) do_rg_system_off ;;
+    speedlimit-mode) do_speedlimit_mode ;;
+    speedlimit-status) do_speedlimit_status ;;
     restore)    do_restore ;;
     status)     do_status ;;
     *) fail "UNKNOWN_ACTION_$ACTION" ;;
