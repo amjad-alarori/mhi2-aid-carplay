@@ -85,9 +85,8 @@ Check the download against `SHA256SUMS.txt` from the same release if you want to
 
 ## Enable or disable native speed-limit text in the Green Menu
 
-Start with a working CarPlay map and guidance installation. Use an install card built with this feature, containing the
-optional `sl` package and the menu buttons below. Park, leave the ignition on and insert the card in **SD1**.
-The speed-limit reader is installed separately from the main **Install all features** procedure.
+after you finish the steps above successfully start with a working CarPlay map. Park, leave the ignition on and insert the card in **SD1**.
+The speed-limit reader is installed separately from the main **Install all features** procedure if you have an earlier version.
 
 ### Install and enable for the first time
 
@@ -108,7 +107,7 @@ If package `sl` is already installed and confirmed, continue at step 6.
 6. Open `pmcp_advanced` and select
    **Native speed limit: enable next-road text after installing and confirming sl**.
    Wait for `PMCP_SPEEDLIMIT_MODE_OK mode=turnto`.
-7. Connect CarPlay and start Google Maps guidance with the VW route ended. Select the navigation view on the AID.
+7. Connect CarPlay and start Google Maps guidance. Select the navigation view on the AID.
    Once VW supplies a valid native limit, text such as **Limit 50 km/h** appears in the navigation caption.
 8. Reboot once more to check automatic activation. In `pmcp_advanced`, open
    **Native speed limit: saved mode and reader snapshot (read-only)** and look for
