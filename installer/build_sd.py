@@ -18,7 +18,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent  # workspace: upstream/, backup/, archives/ next to this project
 PROJ = HERE.parent         # this project (any folder name)
-PMCP_BASE_VERSION = "pmcp-0.4.0-mu1161-791"   # release v1.4.0 (rg-main)
+PMCP_BASE_VERSION = "pmcp-0.4.1-mu1161-791"   # release v1.4.1 (rg-main + optional native speed limit)
 PMCP_VERSION = None   # PMCP_BASE_VERSION + "-" + first 8 hex of payload manifest, pmcp.sh and menu (set in main): one id per build
 
 # M.I.B. backup of the unit (folder named after the unit; every file read from it is pinned by sha256 below)
@@ -82,14 +82,15 @@ PAYLOAD = {
                "6b638868e65a6e573117cbf249850bb29e7b9aac3cd0502c2830652411f1dc23", 17928, "jars/pmcp-np.jar"),
     # rg/build.sh <lsd> <dir> lanes-uturn-asf-m; a file name no earlier card used (java-update keeps the old set intact)
     "JAR_rg": (PROJ / "build/rg-mu1161-lanes-uturn-asf-m/pmcp-rg.jar",
-               "13ca11c4e2a5fbe155165071f69fbee0e2b5b318e87fbfc079a9f76fefb62770", 47817, "jars/pmcp-guidance.jar"),
+               "8e25ae00d155c1cf47cb7661b376c93464ea505141bf83d915b1867047f437cb", 49045, "jars/pmcp-guidance2.jar"),
     "JAR_zoom": (PROJ / "build/extras-mu1161-v2/pmcp-zoom.jar",
                  "046f48210dbee3177fbaa2a25f69154b56055f59b074fced1a0202700dd78d7b", 4740, "jars/pmcp-zoom.jar"),
     "JAR_dn": (PROJ / "build/extras-mu1161-v2/pmcp-dn.jar",
                "aabe871e87510177a333f1a76d69015f8bdeb994fba4ad1251e1b7f2b5afbd70", 11421, "jars/pmcp-dn.jar"),
     # Optional native-map limit reader, output is enabled separately after confirming the Java set.
+    # (amjad-alarori's PR #3; since v1.4.1 without TurnToInfo, which rg owns: rg asks sl for the prefix by name)
     "JAR_sl": (PROJ / "build/sl-mu1161/pmcp-sl.jar",
-               "79bca4e4ec9f69d8536960d096725c5e9e95b2012dd8033c97319bb1d22fb002", 18202, "jars/pmcp-sl.jar"),
+               "eaf0288f49ed15e6bc9573bb92d953153447d743b261df6dd259dab02f9fd4aa", 16373, "jars/pmcp-sl.jar"),
     # Tomasz's driver patch + our log gate: his RGI receive log only with /dev/shmem/pmcp-rgi-debug (rg/driver/)
     "RG_DRIVER": (PROJ / "build/rg-mu1161-lanes-uturn-asf-m/ipod-drvr-iap2-gated.so",
                   "519ea3c5ba08427ea20d62817747af390ac7256bad447da5fcfda388d10b9ed3", 743272, "rg/ipod-drvr-iap2.so"),
@@ -116,6 +117,8 @@ JAVA_OLD = [
     ("rgluasfa", "b3a35c9b40ae4bb5360189178b18218005a194f4585ee491a916bfce539c034d", "385c81be0210bdbd9f599a7739124d528f3d8770", 47510, "pmcp-rgluasfa.jar", "rg"),
     ("rgluasfm", "13ca11c4e2a5fbe155165071f69fbee0e2b5b318e87fbfc079a9f76fefb62770", "517763a46b37afac546ec45e24b72cf15307ad9a", 47817, "pmcp-rgluasfm.jar", "rg"),
     ("rgluasfma", "de39c893d8ea86abe4f57bc350fd7bd2d9b4a79f9023fc28a430cc2a20957ace", "ca03f2696567e24866b30e370159835a2cfae3db", 48161, "pmcp-rgluasfma.jar", "rg"),
+    # v1.4.0 rg (the same bytes as rgluasfm, under the v1.4.0 file name); v1.4.1 adds the speed-limit prefix hook
+    ("rg", "13ca11c4e2a5fbe155165071f69fbee0e2b5b318e87fbfc079a9f76fefb62770", "517763a46b37afac546ec45e24b72cf15307ad9a", 47817, "pmcp-guidance.jar", "rg"),
 ]
 for name in VARIANTS:
     PAYLOAD["CORE_" + name] = (TUNING / name / "core.so", None, 75099, "core/%s/core.so" % name)
@@ -333,9 +336,11 @@ def menu_entries():
            ("rglast", RGLAST, "RG last maneuver: what the iPhone sent and which VW arrow it gives (read-only)"),
            ("navdiag", NAVDIAG, "Navigation diagnostics: why the VW navigation does not start (read-only)"),
            ("aa-remove", "aa-remove", "Remove experimental Android Auto (factory gal back; button 3 does it too)"),
-           ("speedlimit-on", "speedlimit-mode turnto", "Native speed limit: enable next-road text after installing and confirming sl"),
-           ("speedlimit-off", "speedlimit-mode off", "Native speed limit: disable road text"),
-           ("speedlimit-status", "speedlimit-status", "Native speed limit: saved mode and reader snapshot (read-only)")]
+           # package sl (On sl, then 4. Confirm), then one of these; the mode is kept across starts
+           ("speedlimit-on", "speedlimit-mode turnto", "Speed limit: in front of the street name (top bar and dial; needs sl and rg)"),
+           ("speedlimit-cpi", "speedlimit-mode street", "Speed limit TRIAL: in CurrentPositionInfo only (photograph where it shows)"),
+           ("speedlimit-off", "speedlimit-mode off", "Speed limit: off (street name as before)"),
+           ("speedlimit-status", "speedlimit-status", "Speed limit status: mode and native VW limit data (read-only)")]
     inst = [("install-" + v, "install " + v, "Install map layout: " + v) for v in VARIANTS if v != START_VARIANT]
     sw = [("switch-" + v, "switch " + v, "Switch map layout to: " + v) for v in VARIANTS]
     rg = [("rg-system-on", "rg-system-on", "Route guidance system on (iAP2 driver, iap2.cfg, reader)"),

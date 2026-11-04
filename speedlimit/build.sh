@@ -16,7 +16,12 @@ fi
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 sha() { python3 -I -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' "$1"; }
-[ "$(sha "$STOCK_JAR")" = 573b603a0b79b6c150d6c4363d5db2f9a1b644b21f81ab4a2329d5cdda0f1576 ] || fail "converted jar is not the pinned MU1161 image"
+# converted MU1161 lsd.jar: 573b603a (jxe2jar_run.py, fixed timestamps) or a0cc737c (same classes, time-stamped);
+# the patcher also pins every class it reads
+case "$(sha "$STOCK_JAR")" in
+    573b603a0b79b6c150d6c4363d5db2f9a1b644b21f81ab4a2329d5cdda0f1576|a0cc737ce40cf0ef95127fd9bf6d3c21a8ca2edeffe815a5d1adbbd2ae0f2599) ;;
+    *) fail "converted jar is not the pinned MU1161 image" ;;
+esac
 [ "$(sha "$ASM_DIR/asm-9.7.jar")" = adf46d5e34940bdf148ecdd26a9ee8eea94496a72034ff7141066b3eea5c4e9d ] || fail "asm-9.7.jar hash"
 [ "$(sha "$ASM_DIR/asm-tree-9.7.jar")" = 62f4b3bc436045c1acb5c3ba2d8ec556ec3369093d7f5d06c747eb04b56d52b1 ] || fail "asm-tree-9.7.jar hash"
 [ "$(sha "$ASM_DIR/asm-analysis-9.7.jar")" = 7bc6bcbc21379948a0c8c467fb0f864206e5b818f6bc0b546872f5c9f941556f ] || fail "asm-analysis-9.7.jar hash"
@@ -43,7 +48,6 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     for name in (
         'de/esolutions/fw/dsi/trafficregulation/DSITrafficRegulationDispatcher.class',
         'de/vw/mib/bap/mqbab2/navsd/functions/CurrentPositionInfo.class',
-        'de/vw/mib/bap/mqbab2/navsd/functions/TurnToInfo.class',
     ):
         target = Path(sys.argv[2]) / name
         target.parent.mkdir(parents=True, exist_ok=True)

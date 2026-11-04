@@ -84,6 +84,9 @@ if [ "$MODE" != base ]; then
     if [ $ASF = yes ]; then
         python3 -I "$H/lanes/asf.py" "$LB" "$H/lanes" || fail "asf.py"
         EXTRA="$EXTRA $LB/FeedRecovery.java $LB/ArrowProgress.java $LB/RoadName.java"
+        # optional native speed-limit prefix from package sl (speedlimit/), looked up by name: rg/lanes/slhook.py
+        python3 -I "$H/lanes/slhook.py" "$LB" "$H/lanes" || fail "slhook.py"
+        EXTRA="$EXTRA $LB/SpeedLimitText.java"
         ID=pmcp-mu1161-rg-lanes-asf-1; WHAT="$WHAT + MU1367 v1.4.3 bargraph, road name, feed recovery"
     fi
     if [ $MAN = yes ]; then
@@ -121,7 +124,7 @@ with zipfile.ZipFile(dst, 'w') as z:
 EOF
 java -cp "$W/patcher:$CP" RefCheck "$STOCK_JAR" "$W/pmcp-rg.jar"
 javac -nowarn -cp "$W/patched:$STOCK_JAR" -d "$W/tests" "$LB/TestLive.java" ${EXTRA:+"$TL"} \
-    $([ $ASF = yes ] && echo "$LB/TestArrow.java $LB/TestRoad.java $LB/TestRecovery.java") \
+    $([ $ASF = yes ] && echo "$LB/TestArrow.java $LB/TestRoad.java $LB/TestRecovery.java $LB/TestSpeedLimitText.java") \
     $([ $MAN = yes ] && echo "$LB/TestManeuvers.java")
 java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestLive > "$W/tests/result.json" || { cat "$W/tests/result.json"; fail "TestLive"; }
 cat "$W/tests/result.json"; echo
@@ -137,6 +140,13 @@ if [ $ASF = yes ]; then
     grep -q '^ROAD_NAME_PASS ' "$W/tests/road.txt" || fail "TestRoad: no ROAD_NAME_PASS"; cat "$W/tests/road.txt"
     java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestRecovery "$W/tests/recovery" > "$W/tests/recovery.txt" || { cat "$W/tests/recovery.txt"; fail "TestRecovery"; }
     grep -q '^RECOVERY_PASS ' "$W/tests/recovery.txt" || fail "TestRecovery: no RECOVERY_PASS"; cat "$W/tests/recovery.txt"
+    # SpeedLimitText without sl, then with a stand-in sl helper (never packaged)
+    mkdir -p "$W/slfake"; javac --release 8 -nowarn -d "$W/slfake" "$H/lanes/slfake/com/pmcp/sl/NativeSpeedLimit.java"
+    for m in absent fake; do
+        java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR$([ $m = fake ] && echo ":$W/slfake")" com.cpmap.rgi.TestSpeedLimitText $m \
+            > "$W/tests/sl-$m.txt" || { cat "$W/tests/sl-$m.txt"; fail "TestSpeedLimitText $m"; }
+        grep -q '^SPEED_LIMIT_TEXT_PASS ' "$W/tests/sl-$m.txt" || fail "TestSpeedLimitText $m: no PASS"; cat "$W/tests/sl-$m.txt"
+    done
 fi
 if [ $MAN = yes ]; then
     java -Xverify:all -cp "$W/tests:$W/pmcp-rg.jar:$STOCK_JAR" com.cpmap.rgi.TestManeuvers > "$W/tests/maneuvers.txt" || { cat "$W/tests/maneuvers.txt"; fail "TestManeuvers"; }

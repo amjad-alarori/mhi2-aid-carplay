@@ -24,8 +24,10 @@ import org.objectweb.asm.tree.analysis.AnalyzerException;
 
 /**
  * MU1161 optional native-map speed-limit text. The dispatcher hook only copies a
- * sample. The NavSD hook filters the existing street string and registers its
- * factory BAP function for refresh on the factory thread-switching service.
+ * sample. The NavSD CurrentPositionInfo hook filters its street string and registers
+ * the factory BAP function for refresh on the factory thread-switching service.
+ * TurnToInfo is not patched here: since v1.4 the rg package replaces that class and
+ * its fill asks NativeSpeedLimit.turnToText for the prefix (rg/lanes/SpeedLimitText.java).
  * Every firmware-to-helper call has a Throwable guard with a stock fallback.
  *
  * Usage: PatchNativeSpeedLimit <stockClassesDir> <helperClassesDir> <outDir>
@@ -38,10 +40,6 @@ public final class PatchNativeSpeedLimit {
             "de/vw/mib/bap/mqbab2/navsd/functions/CurrentPositionInfo";
     static final String STATUS =
             "de/vw/mib/bap/mqbab2/generated/navsd/serializer/CurrentPositionInfo_Status";
-    static final String TURN_TO =
-            "de/vw/mib/bap/mqbab2/navsd/functions/TurnToInfo";
-    static final String TURN_TO_STATUS =
-            "de/vw/mib/bap/mqbab2/generated/navsd/serializer/TurnToInfo_Status";
     static final String SIGN = "org/dsi/ifc/trafficregulation/TrafficSignInformation";
     static final int FACTORY_VERSION = 46;
 
@@ -50,8 +48,6 @@ public final class PatchNativeSpeedLimit {
             "dff382ac9400272e5e97f57d6be7ea145069f6a01a8547cf47d2b2daab2c660a";
     static final String POSITION_SHA256 =
             "670abf196f45437c072536173ed8f9c445dae9f2ae89f04a10ed89cec268240a";
-    static final String TURN_TO_SHA256 =
-            "af643e32ede0adaeab7972a2ac33ec7cc3d085d0af422bba3182cc94a9d43878";
 
     private final Path stock;
     private final Path helpers;
@@ -72,7 +68,6 @@ public final class PatchNativeSpeedLimit {
                 patcher.output.toAbsolutePath().normalize()), "output equals stock");
         patcher.patchDispatcher();
         patcher.patchCurrentPosition();
-        patcher.patchTurnTo();
         patcher.copyHelpers();
         System.out.println("Native speed-limit text hooks built");
     }
@@ -193,64 +188,6 @@ public final class PatchNativeSpeedLimit {
         hook.add(invoke);
         method.instructions.insertBefore(before, hook);
         Guard.wrapCall(owner, method, invoke, Guard.popArgsReturnZero(invoke.desc));
-    }
-
-    private void patchTurnTo() throws Exception {
-        ClassNode node = readStock(TURN_TO, TURN_TO_SHA256);
-        MethodNode init = method(node, "init",
-                "(Lde/vw/mib/bap/mqbab2/common/api/stages/BAPStageInitializer;)"
-                        + "Lde/vw/mib/bap/datatypes/BAPEntity;");
-        int returns = 0;
-        for (AbstractInsnNode instruction : init.instructions.toArray()) {
-            if (instruction.getOpcode() == Opcodes.ARETURN) {
-                insertStageHook(node.name, init, instruction, "registerTurnTo");
-                returns++;
-            }
-        }
-        expect(returns == 1, "TurnToInfo.init return count " + returns);
-
-        MethodNode uninitialize = method(node, "uninitialize", "()V");
-        insertStageHook(node.name, uninitialize,
-                uninitialize.instructions.getFirst(), "unregisterTurnTo");
-
-        MethodNode fill = method(node, "setTurnToInfoStatusData", "(L" + TURN_TO_STATUS + ";)V");
-        int streetGetters = 0;
-        int signpostGetters = 0;
-        int setters = 0;
-        for (AbstractInsnNode instruction : fill.instructions.toArray()) {
-            if (!(instruction instanceof MethodInsnNode)) {
-                continue;
-            }
-            MethodInsnNode getter = (MethodInsnNode) instruction;
-            if (isStringSetter(getter)) {
-                setters++;
-            }
-            if (!getter.owner.equals(
-                    "de/vw/mib/bap/mqbab2/common/api/navigation/datatypes/NavigationTurnToInfo")
-                    || !getter.desc.equals("()Ljava/lang/String;")) {
-                continue;
-            }
-            expect(getter.getOpcode() == Opcodes.INVOKEINTERFACE && getter.itf,
-                    "NavigationTurnToInfo getter instruction");
-            AbstractInsnNode next = nextReal(getter.getNext());
-            expect(next instanceof MethodInsnNode && isStringSetter((MethodInsnNode) next),
-                    "TurnToInfo getter followed by BAPString setter");
-            if (getter.name.equals("getTurnToInfoStreet")) {
-                MethodInsnNode filter = call("turnToText",
-                        "(Ljava/lang/String;)Ljava/lang/String;");
-                fill.instructions.insert(getter, filter);
-                Guard.wrapCall(node.name, fill, filter, new InsnList());
-                streetGetters++;
-            } else {
-                expect(getter.name.equals("getTurnToInfoSignPost"),
-                        "unexpected NavigationTurnToInfo getter " + getter.name);
-                signpostGetters++;
-            }
-        }
-        expect(streetGetters == 1 && signpostGetters == 1 && setters == 2,
-                "TurnToInfo exact street/signpost getter and setter counts");
-        patchStatusResult(node, "sendTurnToInfoStatus", TURN_TO_STATUS, "turnToStatusResult");
-        writeFirmware(node, 4);
     }
 
     private static void patchStatusResult(ClassNode node, String sendName,

@@ -73,10 +73,12 @@ state() { run status; sed -n 's/^Unit state: //p' "$W/out"; }
 CHAIN=("v13:install map-clean" "v13:java-on nai" "v13:rg-system-on" "v13:java-on rglu" "rg-update" "java-update" "java-on np" \
        "switch map-clean-l40" "java-off np" "java-off rg" "rg-system-off" "java-off nai" "restore" \
        "install map-square-fps40" "rg-system-on" "java-on rg" "java-on sl" \
-       "speedlimit-mode turnto" "speedlimit-mode off" "java-off sl" "java-on zoom" "restore" \
+       "speedlimit-mode turnto" "speedlimit-mode street" "speedlimit-mode off" "java-off sl" "java-on zoom" "restore" \
        "exp:install map-clean" "exp:aa-on gamma" "aa-remove" "exp:aa-on most" "restore")
 if [ "${PMCP_FAULT_SCOPE:-all}" = speedlimit ]; then
-    CHAIN=("install map-clean" "java-on nai" "java-on sl" "speedlimit-mode turnto" "speedlimit-mode off" "java-off sl" "restore")
+    # turnto needs rg in the set (rg writes TurnToInfo since v1.4); street (CurrentPositionInfo trial) does not
+    CHAIN=("install map-clean" "rg-system-on" "java-on rg" "java-on sl" "speedlimit-mode turnto" "speedlimit-mode street" \
+           "speedlimit-mode off" "java-off sl" "restore")
 fi
 fresh_unit; FACTORY=$(snapshot)
 for ((t=0; t<${#CHAIN[@]}; t++)); do

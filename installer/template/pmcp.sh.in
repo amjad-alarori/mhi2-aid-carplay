@@ -18,7 +18,8 @@
 #                               packages (rglu and the experimental rg variants become rg), one trial boot
 #   pmcp.sh aa-remove           Android Auto of an experimental card off: factory gal back (only from a copy with the
 #                               factory hash), its files and markers removed; works in any state (also UNKNOWN due to AA)
-#   pmcp.sh speedlimit-mode MODE  optional native limit in road text: off (default), street or turnto
+#   pmcp.sh speedlimit-mode MODE  optional native VW limit (package sl): off (default); turnto = before the street that rg
+#                               writes to TurnToInfo (needs rg); street = trial, in CurrentPositionInfo only
 #   pmcp.sh speedlimit-status   read-only saved mode and native-limit reader snapshot
 #   pmcp.sh restore             back to the exact factory files
 #
@@ -902,6 +903,10 @@ do_speedlimit_mode() {
         detect_state
         [ "$STATE" = JAVA ] || fail "SPEEDLIMIT_NEEDS_JAVA_STATE_$STATE"
         case " `current_set` " in *" sl "*) ;; *) fail "SPEEDLIMIT_PACKAGE_NOT_INSTALLED" ;; esac
+        # since v1.4 rg owns TurnToInfo and adds the prefix (rg/lanes/SpeedLimitText.java): without rg nothing shows it
+        if [ "$ARG" = turnto ]; then
+            case " `current_set` " in *" rg "*) ;; *) fail "SPEEDLIMIT_TURNTO_NEEDS_RG_PACKAGE" ;; esac
+        fi
         set_id=`boot_set_id`
         [ ! -e "$PERSIST/DISABLED" ] || fail "JAVA_DISABLED_BY_RESCUE_CARD"
         [ -e "$PERSIST/ok.$set_id" ] || fail "SPEEDLIMIT_CONFIRM_JAVA_SET_FIRST"
@@ -1135,7 +1140,7 @@ do_status() {
 say "pmcp $PMCP_VERSION: $ACTION $ARG"
 # Sharing this lock prevents an enable check from racing with a Java-set change or a full restore.
 case "$ACTION" in
-    speedlimit-mode|java-on|java-off|java-retry|java-confirm|restore) speedlimit_lock ;;
+    speedlimit-mode|java-on|java-off|java-retry|java-confirm|java-update|restore) speedlimit_lock ;;
 esac
 case "$ACTION" in
     verify)     do_verify ;;

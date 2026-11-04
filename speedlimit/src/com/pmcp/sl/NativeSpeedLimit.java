@@ -28,6 +28,8 @@ public final class NativeSpeedLimit {
     private static volatile StatusDiagnostics currentStatusDiagnostics;
     private static volatile StatusDiagnostics turnToStatusDiagnostics;
     private static volatile ConnectionDiagnostics connectionDiagnostics;
+    // CarPlay state of the writer's last pass, for turnToPreview (rg's refresh loop must not query ASL every 100 ms)
+    private static volatile boolean carPlayLast;
     private static volatile String refreshErrorClass = "";
     private static volatile int refreshEnqueued;
     private static volatile String turnToRefreshErrorClass = "";
@@ -130,6 +132,20 @@ public final class NativeSpeedLimit {
                     System.currentTimeMillis(), false);
         } catch (Throwable failure) {
             recordFilterFailure(stock, failure, false);
+            return stock;
+        }
+    }
+
+    /**
+     * Called by rg (rg/lanes/SpeedLimitText.java) on its refresh loop: the turnToText result without its filter
+     * diagnostics, with the CarPlay state of the writer's last pass. rg owns TurnToInfo since v1.4, so sl does not
+     * patch that class; rg asks for both methods by name.
+     */
+    public static String turnToPreview(String stock) {
+        try {
+            OutputMode mode = outputMode;
+            return renderStreet(stock, latest, mode.turnTo && !mode.conflict && carPlayLast, System.currentTimeMillis());
+        } catch (Throwable failure) {
             return stock;
         }
     }
@@ -322,6 +338,7 @@ public final class NativeSpeedLimit {
             Snapshot sample = latest;
             long now = System.currentTimeMillis();
             boolean active = carPlayActive();
+            carPlayLast = active;
             OutputMode mode = outputMode;
             try {
                 String visible = renderStreet("", sample, mode.street && !mode.conflict && active, now);

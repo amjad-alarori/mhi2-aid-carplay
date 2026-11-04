@@ -33,17 +33,10 @@ public final class TestNativeSpeedLimitPatch {
                 "setCurrentPositionInfoStatusData(Lde/vw/mib/bap/mqbab2/generated/navsd/serializer/CurrentPositionInfo_Status;)V",
                 "sendCurrentPositionInfoStatus(Lde/vw/mib/bap/mqbab2/generated/navsd/serializer/CurrentPositionInfo_Status;)V"
         }, 5);
-        checkScope(stock, patched, PatchNativeSpeedLimit.TURN_TO, new String[] {
-                "init(Lde/vw/mib/bap/mqbab2/common/api/stages/BAPStageInitializer;)Lde/vw/mib/bap/datatypes/BAPEntity;",
-                "uninitialize()V",
-                "setTurnToInfoStatusData(Lde/vw/mib/bap/mqbab2/generated/navsd/serializer/TurnToInfo_Status;)V",
-                "sendTurnToInfoStatus(Lde/vw/mib/bap/mqbab2/generated/navsd/serializer/TurnToInfo_Status;)V"
-        }, 4);
-        checkTurnToSignpost(patched);
         checkStatusResult(patched, PatchNativeSpeedLimit.POSITION,
                 "sendCurrentPositionInfoStatus", PatchNativeSpeedLimit.STATUS, "currentStatusResult");
-        checkStatusResult(patched, PatchNativeSpeedLimit.TURN_TO,
-                "sendTurnToInfoStatus", PatchNativeSpeedLimit.TURN_TO_STATUS, "turnToStatusResult");
+        check(!Files.exists(patched.resolve("de/vw/mib/bap/mqbab2/navsd/functions/TurnToInfo.class")),
+                "TurnToInfo is left to the rg package");
         checkWrongHash(stock);
         checkRuntimeFallbacks();
         System.out.println("NATIVE_SPEED_LIMIT_PATCH_TEST_OK checks=" + checks);
@@ -86,40 +79,6 @@ public final class TestNativeSpeedLimitPatch {
         }
         check(calls == expectedCalls, owner + " exact helper call count");
         Guard.checkAllGuarded(result, PatchNativeSpeedLimit.HELPER);
-    }
-
-    private static void checkTurnToSignpost(Path patched) throws Exception {
-        ClassNode node = read(patched, PatchNativeSpeedLimit.TURN_TO);
-        MethodNode fill = PatchNativeSpeedLimit.method(node, "setTurnToInfoStatusData",
-                "(L" + PatchNativeSpeedLimit.TURN_TO_STATUS + ";)V");
-        int signpostCalls = 0;
-        int streetFilters = 0;
-        for (AbstractInsnNode instruction : fill.instructions) {
-            if (!(instruction instanceof MethodInsnNode)) {
-                continue;
-            }
-            MethodInsnNode call = (MethodInsnNode) instruction;
-            if (call.owner.equals(PatchNativeSpeedLimit.HELPER)) {
-                check(call.name.equals("turnToText")
-                        && call.desc.equals("(Ljava/lang/String;)Ljava/lang/String;"),
-                        "TurnToInfo fill has only the street filter");
-                streetFilters++;
-            }
-            if (call.name.equals("getTurnToInfoSignPost")) {
-                AbstractInsnNode next = call.getNext();
-                while (next != null && next.getOpcode() < 0) {
-                    next = next.getNext();
-                }
-                check(next instanceof MethodInsnNode, "signpost setter follows getter");
-                MethodInsnNode setter = (MethodInsnNode) next;
-                check(setter.owner.equals("de/vw/mib/bap/datatypes/BAPString")
-                        && setter.name.equals("setContent")
-                        && setter.desc.equals("(Ljava/lang/String;)V"),
-                        "signpost getter still directly feeds its original setter");
-                signpostCalls++;
-            }
-        }
-        check(signpostCalls == 1 && streetFilters == 1, "one untouched signpost and one street filter");
     }
 
     private static void checkStatusResult(Path patched, String owner,

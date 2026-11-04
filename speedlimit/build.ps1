@@ -55,7 +55,6 @@ with zipfile.ZipFile(sys.argv[1]) as z:
     for name in (
         'de/esolutions/fw/dsi/trafficregulation/DSITrafficRegulationDispatcher.class',
         'de/vw/mib/bap/mqbab2/navsd/functions/CurrentPositionInfo.class',
-        'de/vw/mib/bap/mqbab2/navsd/functions/TurnToInfo.class',
     ):
         target = Path(sys.argv[2]) / name
         target.parent.mkdir(parents=True, exist_ok=True)
