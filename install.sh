@@ -419,6 +419,9 @@ run_long "pmcp-zoom.jar and pmcp-dn.jar (zoom, day/night)" bash "$PROJ/hmiextras
 run_long "route guidance (pmcp-rg.jar with lanes, distance bar, street and maneuver fallbacks; iAP2 driver, iap2.cfg, reader)" \
     bash "$PROJ/rg/build.sh" "$LSD_JAR" "$BUILD/rg-mu1161-lanes-uturn-asf-m" lanes-uturn-asf-m
 run_long "optional native-map speed-limit reader (pmcp-sl.jar)" bash "$PROJ/speedlimit/build.sh" "$LSD_JAR" "$BUILD/sl-mu1161"
+run "rg finds the speed-limit helper in pmcp-sl.jar (rg/lanes/TestSpeedLimitText real)" java -Xverify:all \
+    -cp "$BUILD/rg-mu1161-lanes-uturn-asf-m/tests:$BUILD/rg-mu1161-lanes-uturn-asf-m/pmcp-rg.jar:$BUILD/sl-mu1161/pmcp-sl.jar:$LSD_JAR" \
+    com.cpmap.rgi.TestSpeedLimitText real
 ok "all components built"
 
 # ---- 8. installer and card folders ------------------------------------------------------------------------------

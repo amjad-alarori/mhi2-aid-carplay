@@ -2,7 +2,7 @@
 
 Status: **tested in the car (October 2026; v1.4 route guidance November 2026).** Code: [`installer/`](../../installer/).
 The SD build is made by `installer/build_sd.py` (the output directory holds `BUILD-MANIFEST.txt` with the hash of every file;
-the version shown in GEM is `pmcp-0.4.0-mu1161-791-<build id>`, where the id is the first 8 hex digits of the SHA-256 of the
+the version shown in GEM is `pmcp-0.4.1-mu1161-791-<build id>`, where the id is the first 8 hex digits of the SHA-256 of the
 manifest and the `pmcp.sh` template). The install card is assembled by `installer/build_card_install.py`, the rescue card by
 `installer/build_rescue.py`.
 

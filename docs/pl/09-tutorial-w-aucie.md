@@ -1,6 +1,6 @@
 # Tutorial w aucie: instalacja krok po kroku (Passat B8, MHI2 MU1161, AID 791)
 
-Wersja instalatora: **`pmcp-0.4.0-mu1161-791-…`** (końcówka to identyfikator buildu; jest w pierwszej linii
+Wersja instalatora: **`pmcp-0.4.1-mu1161-791-…`** (końcówka to identyfikator buildu; jest w pierwszej linii
 `BUILD-MANIFEST.txt`, w `PMCP_INSTRUKCJA.txt` na karcie 1 i na górze ekranu zielonego menu).
 Wszystkie napisy zielonego menu są po angielsku (od v1.4); niżej cytowane dokładnie tak, jak na ekranie.
 
@@ -30,7 +30,7 @@ zawsze slot **SD1**.
 - Karta SD w zielonym menu jest tylko do odczytu, więc instalator nie zapisze na niej logu (pokazuje
   `PMCP_WARN=SD_LOG_NOT_WRITABLE` i działa dalej). **Fotografuj wynik każdej akcji.**
 - Wejście do zielonego menu: przytrzymaj **MENU ~10 s** → `=>M.I.B.<=` → **`pmcp_CarPlay_AID`**. Nagłówek musi pokazać
-  wersję twojego buildu (`pmcp-0.4.0-mu1161-791-…`); inna wersja = stop.
+  wersję twojego buildu (`pmcp-0.4.1-mu1161-791-…`); inna wersja = stop.
 - „Restart” = **przytrzymaj pokrętło głośności ~10 s** (radio się wyłącza i startuje). Wyłączenie i włączenie auta od razu
   to nie restart (radio jeszcze nie zasnęło).
 

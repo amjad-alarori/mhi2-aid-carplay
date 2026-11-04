@@ -2,7 +2,7 @@
 
 Stan: **przetestowany w aucie (październik 2026; prowadzenie v1.4 listopad 2026).** Kod: [`installer/`](../../installer/).
 Build SD tworzy `installer/build_sd.py` (w katalogu wyjściowym `BUILD-MANIFEST.txt` z hashami wszystkich plików, wersja
-w GEM `pmcp-0.4.0-mu1161-791-<id buildu>`, gdzie ID to pierwsze 8 znaków SHA-256 manifestu i szablonu `pmcp.sh`).
+w GEM `pmcp-0.4.1-mu1161-791-<id buildu>`, gdzie ID to pierwsze 8 znaków SHA-256 manifestu i szablonu `pmcp.sh`).
 Kartę instalacyjną składa `installer/build_card_install.py`, kartę ratunkową `installer/build_rescue.py`.
 
 ## Paczki (budowane razem, wgrywane partiami przyciskami M.I.B.)

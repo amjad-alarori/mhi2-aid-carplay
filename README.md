@@ -30,7 +30,7 @@ This repository holds only what is specific to this head unit. It builds on the 
 | CarPlay track title and artist on the AID | works |
 | Day/night switching of the cluster map | works |
 | Speed limit from the phone (`showSpeedLimit=yes`) | shows nothing on this unit |
-| Optional native VW map speed limit in navigation text during CarPlay guidance | 50 → 70 km/h update confirmed on an e-Golf AID 795A. Persistent activation awaits vehicle validation. [Details](docs/en/16-native-speed-limits.md) |
+| Optional (v1.4.1, package `sl` by amjad-alarori): the car's own VW map speed limit in front of the street name, or a trial in CurrentPositionInfo | 50 → 70 km/h confirmed on an e-Golf (AID 795A); not yet tried on AID 791. [Details](docs/en/16-native-speed-limits.md) |
 
 iAP2 route guidance carries no numeric speed limit (research by
 [maxim-smirnov/mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster) on iOS 26.6/27);
@@ -253,6 +253,8 @@ This project would not exist without:
   maneuver table of [mhi2_altscreen_carplay](https://github.com/harman-f/mhi2_altscreen_carplay)
   (`MibrRgiManeuvers.java`, commit `c01bbdc`, GPL-3.0) used by the arrow fallbacks in `rg/`.
 - **[luka-dev](https://github.com/luka-dev/jxe2jar)**: jxe2jar, the RGI decoder and the iAP2 maneuver type names.
+- **[amjad-alarori](https://github.com/amjad-alarori)**: the optional native VW speed-limit package `speedlimit/` (PR #3):
+  the `DSITrafficRegulation` hook, the limit filter and its installer actions and tests.
 - **maxim-smirnov**: documentation of the LZOZ container format, and the research showing that iAP2 route guidance
   carries no speed limit ([mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster)).
 - **MacsInSpace**: the "Forget this car" tip when the cluster gets no picture.

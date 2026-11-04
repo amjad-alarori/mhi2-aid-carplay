@@ -31,6 +31,7 @@ W repo jest tylko to, co dotyczy tego radia. Całość opiera się na pracy proj
 | Tytuł i wykonawca utworu z CarPlay na AID | działa |
 | Przełączanie dzień/noc mapy na liczniku | działa |
 | Ograniczenie prędkości z telefonu (`showSpeedLimit=yes`) | na tym radiu nic nie pokazuje |
+| Opcjonalnie (v1.4.1, paczka `sl` od amjad-alarori): limit z map samego auta VW przed nazwą ulicy albo próbnie w CurrentPositionInfo | 50 → 70 km/h potwierdzone w e-Golfie (AID 795A); na AID 791 jeszcze nie sprawdzone. [Opis po angielsku](docs/en/16-native-speed-limits.md) |
 
 Prowadzenie iAP2 nie przenosi liczbowego ograniczenia prędkości (badania
 [maxim-smirnov/mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster) na iOS 26.6/27);
@@ -231,6 +232,8 @@ Ten projekt nie powstałby bez:
   z [mhi2_altscreen_carplay](https://github.com/harman-f/mhi2_altscreen_carplay) (`MibrRgiManeuvers.java`, commit
   `c01bbdc`, GPL-3.0), z której korzystają zastępcze strzałki w `rg/`.
 - **[luka-dev](https://github.com/luka-dev/jxe2jar)**: jxe2jar, dekoder RGI i nazwy typów manewrów iAP2.
+- **[amjad-alarori](https://github.com/amjad-alarori)**: opcjonalna paczka limitu prędkości z map VW `speedlimit/` (PR #3):
+  hak `DSITrafficRegulation`, filtr limitu oraz jego akcje instalatora i testy.
 - **maxim-smirnov**: opis formatu kontenera LZOZ oraz badania pokazujące, że prowadzenie iAP2 nie przenosi ograniczenia
   prędkości ([mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster)).
 - **MacsInSpace**: wskazówka „Zapomnij to auto”, gdy licznik nie dostaje obrazu.

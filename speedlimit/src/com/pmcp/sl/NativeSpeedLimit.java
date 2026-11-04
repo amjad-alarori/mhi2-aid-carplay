@@ -128,8 +128,9 @@ public final class NativeSpeedLimit {
     public static String streetText(String stock) {
         try {
             OutputMode mode = outputMode;
-            return filterText(stock, latest, mode.street, carPlayActive(), mode.conflict,
-                    System.currentTimeMillis(), false);
+            // same 75-byte UTF-8 budget as rg's TurnToInfo text (rg/lanes/SpeedLimitText.fit)
+            return fit(filterText(stock, latest, mode.street, carPlayActive(), mode.conflict,
+                    System.currentTimeMillis(), false), stock);
         } catch (Throwable failure) {
             recordFilterFailure(stock, failure, false);
             return stock;
@@ -248,6 +249,28 @@ public final class NativeSpeedLimit {
             return text;
         }
         return new StringBuffer(text).append(" | ").append(stock).toString();
+    }
+
+    static final int MAX_BYTES = 75;
+
+    /** Cuts to MAX_BYTES of UTF-8 without splitting a character; on any failure the stock text. */
+    static String fit(String text, String stock) {
+        try {
+            if (text == null) {
+                return stock;
+            }
+            byte[] bytes = text.getBytes("UTF-8");
+            if (bytes.length <= MAX_BYTES) {
+                return text;
+            }
+            int n = MAX_BYTES;
+            while (n > 0 && (bytes[n] & 0xC0) == 0x80) {
+                n--;
+            }
+            return new String(bytes, 0, n, "UTF-8").trim();
+        } catch (Throwable failure) {
+            return stock;
+        }
     }
 
     static String limitText(Snapshot sample) {

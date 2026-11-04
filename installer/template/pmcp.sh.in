@@ -132,6 +132,8 @@ fail() {
 
 # Serialize mode changes with Java-set changes. Only the successful mkdir owner installs cleanup.
 # /ramdisk exists on MMX and disappears at reboot, including a lock left by sudden power loss.
+# Only the actions that write the mode or change the package list take it: java-confirm, java-retry and restore
+# never wait for it, so a lock left by a killed script cannot block the way back (it goes at the next start).
 speedlimit_lock() {
     mkdir "$SL_LOCK" 2>/dev/null || fail "SPEEDLIMIT_LOCK_BUSY_OR_RAMDISK_UNAVAILABLE"
     trap 'rm -f "$SL_MODE.pmcp-new" 2>/dev/null; rm -rf "$SL_LOCK" 2>/dev/null' 0
@@ -772,6 +774,9 @@ do_java_off() {
     remount_rw
     # The currently loaded helper sees the absent mode and restores factory text before the reboot.
     [ "$ARG" != sl ] || clear_speedlimit_mode
+    # turnto shows only through rg's TurnToInfo text: without rg it would be a saved mode that shows nothing and comes
+    # back silently with a later java-on rg
+    if [ "$ARG" = rg ] && [ "`cat "$SL_MODE" 2>/dev/null`" = turnto ]; then clear_speedlimit_mode; fi
     if [ -z "$new" ]; then
         # last package: factory lsd.sh first (switch off), then remove the JAR and set files
         cp "$ROOT/rollback/lsd.sh" "$LSD.pmcp-rb" || fail "LSD_RESTORE_STAGE_FAILED"
@@ -1140,7 +1145,7 @@ do_status() {
 say "pmcp $PMCP_VERSION: $ACTION $ARG"
 # Sharing this lock prevents an enable check from racing with a Java-set change or a full restore.
 case "$ACTION" in
-    speedlimit-mode|java-on|java-off|java-retry|java-confirm|java-update|restore) speedlimit_lock ;;
+    speedlimit-mode|java-on|java-off|java-update) speedlimit_lock ;;
 esac
 case "$ACTION" in
     verify)     do_verify ;;

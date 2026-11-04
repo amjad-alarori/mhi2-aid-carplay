@@ -413,7 +413,9 @@ for SH in "$@"; do
 
     fresh_unit; run install map-clean; rc_is 0; run rg-system-on; rc_is 0; run java-on rg; rc_is 0
     mkdir -p "$W/unit/mnt/persist/pmcp"; echo "set=$RG use=trial" > "$W/unit/mnt/persist/pmcp/last-boot"
+    echo turnto > "$W/unit/mnt/persist/pmcp/native-speedlimit-mode"
     rescue
+    [ ! -e "$W/unit/mnt/persist/pmcp/native-speedlimit-mode" ] && ok "speed-limit mode removed (not back after Try again)" || bad "speed-limit mode left"
     [ "$(h "$U/armle/lib/dll/ipod-drvr-iap2.so")" = 7149a3e75b1b19e89021841759f420a6eced456b6c697a3dd1f0e436abea0b8c ] && ok "RG: factory iAP2 driver back" || bad "driver not restored"
     [ "$(h "$W/unit/mnt/system/etc/mm/iap2.cfg")" = 1539c79dd415eddeb59ea215c7a9b0ec4be3632fe066be3aefdff11bd19cdf37 ] && ok "RG: factory iap2.cfg back" || bad "cfg not restored"
     [ ! -e "$U/carplaymaps/rg/SYSTEM_ON" ] && [ ! -e "$W/unit/mnt/persist/pmcp/last-boot" ] && ok "SYSTEM_ON and last-boot removed" || bad "SYSTEM_ON/last-boot left"
@@ -669,18 +671,25 @@ PEOF
     run java-off nai; rc_is 0
     [ "$(cat "$SLM")" = turnto ] && ok "removing another package preserves the mode" || bad "unrelated removal cleared mode"
     run java-off sl; rc_is 0
-    [ ! -e "$SLM" ] && [ ! -e "$U/eso/hmi/lsd/jars/pmcp-sl.jar" ] && ok "reader removal clears configuration and jar" || bad "reader removal left state"
+    [ ! -e "$SLM" ] && [ ! -e "$U/eso/hmi/lsd/jars/pmcp-sl2.jar" ] && ok "reader removal clears configuration and jar" || bad "reader removal left state"
     run speedlimit-mode off; rc_is 0
     run java-on sl; rc_is 0; unit_boot > /dev/null; run java-confirm; rc_is 0
     run speedlimit-mode turnto; rc_is 0
-    o=$(unit_boot); case "$o" in "boot=yes "*pmcp-guidance2.jar*pmcp-sl.jar) ok "rg and sl load together" ;; *) bad "boot: $o" ;; esac
+    o=$(unit_boot); case "$o" in "boot=yes "*pmcp-guidance2.jar*pmcp-sl2.jar) ok "rg and sl load together" ;; *) bad "boot: $o" ;; esac
     # without rg nothing writes TurnToInfo text: turnto is refused, the CurrentPositionInfo trial (street) is not
     run java-off rg; rc_is 0; unit_boot > /dev/null; run java-confirm; rc_is 0
-    [ ! -e "$SLM" ] || [ "$(cat "$SLM")" = turnto ] && ok "removing rg keeps the saved mode file" || bad "mode file changed by java-off rg"
+    [ ! -e "$SLM" ] && ok "removing rg resets turnto to off" || bad "turnto kept without rg"
     run speedlimit-mode turnto; rc_is 1; expect_out "SPEEDLIMIT_TURNTO_NEEDS_RG_PACKAGE" "turnto needs rg"
     run speedlimit-mode street; rc_is 0; expect_out "PMCP_SPEEDLIMIT_MODE_OK mode=street" "CurrentPositionInfo trial without rg"
-    run restore; rc_is 0
-    [ ! -e "$SLP" ] && [ ! -e "$SLL" ] && ok "full restore clears mode and lock" || bad "full restore left mode or lock"
+    # a lock left by a killed script blocks only mode and package changes, never Confirm, Try again or Remove everything
+    mkdir "$SLL"
+    run java-retry; rc_is 0; run java-confirm; rc_is 1; expect_out "SET_ALREADY_CONFIRMED" "confirm runs past a stale lock (set confirmed already)"
+    expect_out_not() { grep -q "$1" "$W/out" && bad "$2" || ok "$2"; }
+    expect_out_not "SPEEDLIMIT_LOCK_BUSY" "java-confirm does not wait for the lock"
+    run java-on np; rc_is 1; expect_out "SPEEDLIMIT_LOCK_BUSY" "package change waits for the lock"
+    run restore; rc_is 0; expect_out "PMCP_RESTORE_OK" "restore runs past a stale lock"
+    [ ! -e "$SLP" ] && ok "full restore clears the mode" || bad "full restore left the mode"
+    rm -rf "$SLL"
 
     echo "[23] v1.4.0 card -> this card: button 3's rg-update and java-update, then sl"
     fresh_unit; factory=$(snapshot "$W/unit")

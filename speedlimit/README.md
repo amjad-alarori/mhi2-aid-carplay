@@ -1,8 +1,17 @@
 # Native VW speed limits on the AID
 
-This optional Java package displays the built-in VW navigation speed limit in the AID navigation text. It reads the
-head unit's `DSITrafficRegulation` current-sign attribute and prefixes the turn-to street with text such as
-`Limit 50 km/h`. Google Maps continues to supply the CarPlay map and route guidance.
+This optional Java package (by amjad-alarori, PR #3) displays the built-in VW navigation speed limit in the AID
+navigation text. It reads the head unit's `DSITrafficRegulation` current-sign attribute and prefixes the street text with
+text such as `Limit 50 km/h`. The CarPlay app continues to supply the map and route guidance.
+
+Since v1.4.1 it works together with the `rg` package. `rg` replaces the factory `TurnToInfo` class (it writes the
+iPhone's street name there), so `sl` no longer patches that class: `rg` asks `sl` for the prefix
+([`rg/lanes/SpeedLimitText.java`](../rg/lanes/SpeedLimitText.java)). Two output modes:
+
+| Mode | GEM button (pmcp_advanced) | Where the limit goes |
+|---|---|---|
+| `turnto` | "Speed limit: in front of the street name (top bar and dial; needs sl and rg)" | `rg`'s TurnToInfo text: the AID top bar and the right dial show the same field |
+| `street` | "Speed limit TRIAL: in CurrentPositionInfo only (photograph where it shows)" | NavSD CurrentPositionInfo only; where (or whether) AID 791 shows it is not known yet |
 
 The in-car procedure is in [Native speed limits](../docs/en/16-native-speed-limits.md).
 
@@ -29,14 +38,15 @@ confirmation is pending. Compatibility with additional firmware versions and AID
 2. `NativeSpeedLimit` selects a valid conventional limit and preserves its metric or imperial unit. The initial-notification
    flag is `0x80`. Normalization clears that flag and requires the remaining validity value to equal `1`. The earlier trial
    mask using `0x8000` has been corrected.
-3. A guarded filter in NavSD `TurnToInfo` prefixes its street string. Function 20 passes that value through
-   `NavInfoAdapter` to `DSIKOMONavInfo.setTurnToStreet`. The existing signpost string follows its factory path.
+3. Mode `turnto`: `rg`'s TurnToInfo fill passes its street text through `SpeedLimitText`, which calls
+   `NativeSpeedLimit.turnToText` by name (and `turnToPreview` on `rg`'s 100 ms refresh loop, so a new limit is sent
+   like a new street name). Without `sl`, or with the mode off, the text is unchanged. The result is cut to 75 bytes.
+   Mode `street`: a guarded filter in NavSD `CurrentPositionInfo` prefixes its street string.
 4. Refreshes use the factory BAP thread-switching service and `process(-1)`. Service initialization stays on the BAP
    lifecycle thread. The helper coalesces refresh requests and rejects tasks for an unregistered stage.
 
-The turn-to street has a 76-byte UTF-8 budget. The prefix precedes the road name so the limit survives normal string
-truncation. The package retains CurrentPositionInfo instrumentation for diagnosis. The public persistent mode selects
-the tested TurnToInfo route.
+The turn-to street has a 76-byte UTF-8 budget. The prefix precedes the road name so the limit survives the cut.
+`turnto` needs `rg` in the Java set (the installer refuses it otherwise); `street` does not.
 
 Every firmware-to-helper call has a `Throwable` guard. String failures retain the original string, and status-result
 hooks retain the original boolean. BAP result diagnostics describe a changed-value transmission request or a deduplicated
@@ -63,18 +73,19 @@ The installer exposes these actions.
 
 | Action | Effect |
 |---|---|
-| `java-on sl` | Add `pmcp-sl.jar` through the standard Java trial mechanism |
-| `speedlimit-mode turnto` | Enable the TurnToInfo prefix across restarts |
+| `java-on sl` | Add `pmcp-sl.jar` (on the unit: `pmcp-sl2.jar`) through the standard Java trial mechanism |
+| `speedlimit-mode turnto` | Enable the prefix in `rg`'s TurnToInfo text across restarts (needs `rg`) |
+| `speedlimit-mode street` | Trial: the prefix in CurrentPositionInfo only, across restarts |
 | `speedlimit-mode off` | Disable the prefix across restarts |
 | `speedlimit-status` | Show the selected mode and current runtime diagnostics |
 | `java-off sl` | Remove the Java package through the standard installer |
 
-The mode file is `/mnt/persist/pmcp/native-speedlimit-mode`. The controller writes `off` or `turnto` using a staged file
+The mode file is `/mnt/persist/pmcp/native-speedlimit-mode`. The controller writes `off`, `turnto` or `street` using a staged file
 and an atomic rename. A missing, unreadable or invalid mode file disables output. A fresh installation starts with output
 off. The generic install-all action excludes this optional package.
 
 Install the package, reboot into its Java trial, test the normal head unit functions and capture, then run `java-confirm`
-in that same boot. Enable `turnto` after confirmation, reboot, and test again. Detailed steps and rollback are in the
+in that same boot. Enable a mode after confirmation, reboot, and test again. Detailed steps and rollback are in the
 [in-car procedure](../docs/en/16-native-speed-limits.md).
 
 ## Building

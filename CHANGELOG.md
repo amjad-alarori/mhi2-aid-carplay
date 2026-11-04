@@ -3,6 +3,41 @@
 All releases are for one combination only: VW Passat B8 (MY2018), Discover Pro MHI2 **MU1161**, train
 `MHI2_ER_VWG13_P4512`, AID part 791. Installer versions are `pmcp-<x.y.z>-mu1161-791-<build id>`.
 
+## v1.4.1 (2026-11)
+
+Optional native VW speed limit on the AID, from amjad-alarori's PR #3, adapted to v1.4.
+
+- **Package `sl`** (`speedlimit/`, by amjad-alarori). It reads the car's own speed limit (VW navigation map data,
+  `DSITrafficRegulation`), not the phone's. It is not part of button 3: install it with "On sl: …", then Confirm. In
+  `pmcp_advanced`:
+  - "Speed limit: in front of the street name (top bar and dial; needs sl and rg)": `Limit 50 km/h | <street>` in the
+    field that `rg` fills with the iPhone's street name. The AID shows that field in the top bar and in the right dial.
+  - "Speed limit TRIAL: in CurrentPositionInfo only (photograph where it shows)": the limit only in the NavSD
+    CurrentPositionInfo street, to find out where AID 791 shows that field.
+  - "Speed limit: off (street name as before)" and "Speed limit status: …" (read-only).
+
+  The mode is kept across starts; a new install of `sl` starts with it off; "Remove everything" and "Off sl" clear it.
+- **`rg` and `sl` together.** Both packages used to replace the factory `TurnToInfo` class, and only one of two such
+  JARs can load. `sl` no longer touches that class. `rg` asks `sl` for the prefix by name
+  (`rg/lanes/SpeedLimitText.java`), so `rg` alone behaves exactly as in v1.4.0. The text is cut to the factory 75-byte
+  budget without splitting a letter. The build refuses two packages with the same class.
+- **Update from v1.4.0:** button 3 replaces v1.4.0's `rg` (`pmcp-guidance.jar` → `pmcp-guidance2.jar`) with one trial
+  start and one Confirm. The driver and the reader are unchanged.
+- The mode is cleared when it can no longer show or should not come back by itself: "Off rg" resets the "in front of
+  the street name" mode, and the rescue card removes the mode (make a new rescue card for v1.4.1). On the unit the
+  package file is `pmcp-sl2.jar`. A unit that ran PR #3's own card: "Remove everything" first.
+- The speed-limit lock is taken only by mode and package changes; a lock left by a killed script never blocks Confirm,
+  Try again or Remove everything. In the CurrentPositionInfo trial the text is also cut to 75 bytes.
+- Tests:
+  - host tests of the prefix without `sl`, with a stand-in and with the real `sl` JAR (also in `install.sh`);
+  - a v1.4.0 → v1.4.1 scenario;
+  - `sl` in the power-loss chain, including both modes.
+
+### Credits for this release
+
+- **amjad-alarori**: the speed-limit package, its installer actions and its tests (commit `4f71f38`, his authorship
+  kept).
+
 ## v1.4.0 "rg-main" (2026-11)
 
 One route guidance package with everything that works in the car, a more robust route guidance reader and iAP2

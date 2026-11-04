@@ -88,9 +88,11 @@ PAYLOAD = {
     "JAR_dn": (PROJ / "build/extras-mu1161-v2/pmcp-dn.jar",
                "aabe871e87510177a333f1a76d69015f8bdeb994fba4ad1251e1b7f2b5afbd70", 11421, "jars/pmcp-dn.jar"),
     # Optional native-map limit reader, output is enabled separately after confirming the Java set.
-    # (amjad-alarori's PR #3; since v1.4.1 without TurnToInfo, which rg owns: rg asks sl for the prefix by name)
+    # (amjad-alarori's PR #3; since v1.4.1 without TurnToInfo, which rg owns: rg asks sl for the prefix by name). File
+    # pmcp-sl2.jar: the PR's own card used pmcp-sl.jar for its sl with TurnToInfo (a unit with that set: Remove
+    # everything first; its hashes are not known here, so it is not in JAVA_OLD)
     "JAR_sl": (PROJ / "build/sl-mu1161/pmcp-sl.jar",
-               "eaf0288f49ed15e6bc9573bb92d953153447d743b261df6dd259dab02f9fd4aa", 16373, "jars/pmcp-sl.jar"),
+               "37b5d9488b818e4a4de58dc9541b6618de364e5a46d81439c1f3206762e5249f", 16527, "jars/pmcp-sl2.jar"),
     # Tomasz's driver patch + our log gate: his RGI receive log only with /dev/shmem/pmcp-rgi-debug (rg/driver/)
     "RG_DRIVER": (PROJ / "build/rg-mu1161-lanes-uturn-asf-m/ipod-drvr-iap2-gated.so",
                   "519ea3c5ba08427ea20d62817747af390ac7256bad447da5fcfda388d10b9ed3", 743272, "rg/ipod-drvr-iap2.so"),

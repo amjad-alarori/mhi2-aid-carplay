@@ -111,6 +111,8 @@ attempt() {
         mkdir -p "$PERSIST" 2>/dev/null
         touch "$PERSIST/DISABLED" 2>/dev/null
         rm -f "$PERSIST/last-boot" 2>/dev/null
+        # the optional speed-limit output (v1.4.1, package sl) must not come back by itself after java-retry
+        rm -f "$PERSIST/native-speedlimit-mode" 2>/dev/null
         rm -f "$ROOT/rg/SYSTEM_ON" 2>/dev/null
     fi
     # same file, factory copy by size: FILE COPY OUR_SIZE FACTORY_SIZE

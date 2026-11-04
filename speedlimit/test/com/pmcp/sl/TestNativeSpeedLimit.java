@@ -53,6 +53,13 @@ public final class TestNativeSpeedLimit {
     }
 
     public static void main(String[] args) throws Exception {
+        // street mode budget (v1.4.1): 75 bytes of UTF-8, never a split character
+        StringBuffer road = new StringBuffer();
+        for (int k = 0; k < 40; k++) road.append('\u0105');
+        String cut = NativeSpeedLimit.fit("Limit 50 km/h | " + road, "stock");
+        check(cut.getBytes("UTF-8").length <= 75 && cut.indexOf('\uFFFD') < 0 && cut.startsWith("Limit 50 km/h | "), "street text cut to 75 bytes");
+        check(NativeSpeedLimit.fit("short", "stock").equals("short") && NativeSpeedLimit.fit(null, "stock").equals("stock"), "short and null text");
+
         NativeSpeedLimit.Snapshot metric = sample(50, 1, 0, 1);
         check("Limit 50 km/h | Road".equals(NativeSpeedLimit.renderStreet("Road", metric, true, 1001L)), "metric rendering");
         check("Limit 50 km/h".equals(NativeSpeedLimit.renderStreet("", metric, true, 1001L)), "empty street rendering");

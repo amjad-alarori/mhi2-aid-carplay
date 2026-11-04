@@ -1,8 +1,15 @@
 # Native speed limits alongside CarPlay
 
-The optional native speed-limit package adds text such as `Limit 50 km/h` to the AID turn-to street area. The value comes
-from the built-in VW navigation database through `DSITrafficRegulation`. Google Maps can continue routing through
-CarPlay while VW route guidance is ended.
+The optional native speed-limit package `sl` (by amjad-alarori, PR #3) adds text such as `Limit 50 km/h` to the AID
+street text. The value comes from the built-in VW navigation database through `DSITrafficRegulation`. The CarPlay app
+continues to route while VW route guidance is ended. The iPhone sends no speed limit; this is the car's own map data.
+
+Since v1.4.1 there are two modes:
+
+- **in front of the street name** (`turnto`): the limit goes before the street that `rg` writes to TurnToInfo. On the AID
+  that one field shows in two places, the top bar and the right dial. Needs `rg`.
+- **trial in CurrentPositionInfo** (`street`): the limit goes only into the NavSD CurrentPositionInfo street. Nobody has
+  seen yet where AID 791 shows that field (top bar only, somewhere else, or nowhere). Photograph the result.
 
 ## Tested configuration
 
@@ -22,20 +29,20 @@ vehicle restart remains to be confirmed. Additional firmware and cluster combina
 
 ## Install and confirm the optional package
 
-Start with a working CarPlay map and guidance installation. The normal installation and Java recovery mechanism are
-described in the [in-car guide](09-in-car-guide.md).
+Start with a working v1.4.1 install (button 3 and Confirm). The normal installation and Java recovery mechanism are
+described in the [in-car guide](09-in-car-guide.md). GEM button texts are quoted exactly; the action is in brackets.
 
-The action names below identify the corresponding controls in the generated installer menu.
-
-1. Run the card and unit check with the card built for this firmware.
-2. Run `java-on sl` to add the native speed-limit package. Its output mode starts off. The generic install-all action
-   excludes this optional package.
-3. Reboot the head unit using the volume knob. This boot is the Java trial for the new set.
-4. Check that the normal head unit menus, audio, CarPlay connection, map and guidance work. Run `speedlimit-status` and
-   check that the helper is capturing native limit data. The output can remain off during this check.
-5. Run `java-confirm` in that same trial boot after those checks pass.
-6. Run `speedlimit-mode turnto` to enable the prefix persistently.
-7. Reboot again and test the confirmed set and saved output mode.
+1. "1. Check card and unit (read-only)" (`verify`).
+2. Advanced → packages: "On sl: native VW map speed limit in the AID road text (optional, output off until enabled)"
+   (`java-on sl`). Its output mode starts off. Button 3 never installs this package.
+3. Restart the unit (hold the volume knob ~10 s). This start is the Java trial for the new set.
+4. Check that menus, audio, CarPlay, map and guidance work. Advanced: "Speed limit status: mode and native VW limit data
+   (read-only)" (`speedlimit-status`) should show `status=valid` and a `speed_limit_raw` value while driving.
+5. In that same start: "4. Confirm: everything works (only in the first start after 3)" (`java-confirm`).
+6. Advanced: "Speed limit: in front of the street name (top bar and dial; needs sl and rg)" (`speedlimit-mode turnto`), or
+   the trial "Speed limit TRIAL: in CurrentPositionInfo only (photograph where it shows)" (`speedlimit-mode street`).
+7. The mode applies within about a second; it is kept across restarts. Back to the plain street name: "Speed limit: off
+   (street name as before)" (`speedlimit-mode off`).
 
 For the route test, connect CarPlay, start Google Maps guidance and end any VW route guidance. Keep the AID navigation
 view selected. The native limit should appear in the turn-to text while the CarPlay maneuver and distance remain visible.
@@ -49,7 +56,8 @@ set follows the existing installer recovery behavior on the next boot.
 
 | Action | Result |
 |---|---|
-| `speedlimit-mode turnto` | Save TurnToInfo output as the selected mode |
+| `speedlimit-mode turnto` | Save the prefix in `rg`'s TurnToInfo text as the selected mode (needs `rg`) |
+| `speedlimit-mode street` | Save the CurrentPositionInfo trial as the selected mode |
 | `speedlimit-mode off` | Save output off and restore the factory street text through the normal refresh path |
 | `speedlimit-status` | Read the saved mode and current helper state |
 
