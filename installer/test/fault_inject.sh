@@ -7,12 +7,13 @@
 #     be the one from before the action or a set the user confirmed earlier (nothing untested may load permanently);
 #   - state is STOCK/VIDEO/JAVA/PARTIAL (never UNKNOWN), and restore (or nothing, for STOCK) gives the factory tree.
 #   fault_inject.sh SD_BUILD_DIR SHELL
+#   PMCP_FAULT_SCOPE=speedlimit runs native-limit actions with one retained companion package.
 set -u
 SDB=$(cd "${1:?sd build dir}" && pwd); SH=${2:?shell}
 REPO=$(cd "$(dirname "$0")/../../.." && pwd)
 H=$(cd "$(dirname "$0")" && pwd)
 BK="${PMCP_BACKUP:-$REPO/backup/MU1161}/advanced/MU1161-appimg"
-export PMCP_TEST_GAWK="$REPO/upstream/tools/gawk-3.1.5/gawk"
+export PMCP_TEST_GAWK="${PMCP_TEST_GAWK:-$REPO/upstream/tools/gawk-3.1.5/gawk}"
 W=$(mktemp -d /tmp/pmcp-fi.XXXX)
 U="$W/unit/mnt/app"
 FAILS=0; CASES=0
@@ -20,7 +21,7 @@ bad() { echo "  FAIL $*"; FAILS=$((FAILS+1)); }
 
 fresh_unit() {
     rm -rf "$W/unit" "$W/sd"
-    mkdir -p "$W/unit/ifs" "$U/eso/bin/apps" "$U/eso/hmi/lsd/jars" "$U/armle/usr/bin" "$W/unit/mnt/persist/etc" \
+    mkdir -p "$W/unit/ifs" "$W/unit/ramdisk" "$U/eso/bin/apps" "$U/eso/hmi/lsd/jars" "$U/armle/usr/bin" "$W/unit/mnt/persist/etc" \
         "$U/armle/lib/dll" "$W/unit/mnt/system/etc/mm"
     cp "$BK/armle/lib/dll/ipod-drvr-iap2.so" "$U/armle/lib/dll/"
     cp "$BK/../MU1161-system/mm/iap2.cfg" "$W/unit/mnt/system/etc/mm/"
@@ -35,6 +36,10 @@ fresh_unit() {
         "$W/sd/pmcp.sh" > "$W/sd/pmcp-fi.sh"
 }
 snapshot() { (cd "$W/unit" && find . -type f ! -path './sdlog/*' -exec shasum -a 256 {} \; | sort -k2); }
+mode_digest() {
+    _mode_file="$W/unit/mnt/persist/pmcp/native-speedlimit-mode"
+    if [ -e "$_mode_file" ]; then shasum -a 256 < "$_mode_file" | cut -d' ' -f1; else echo absent; fi
+}
 # "v13:ACTION": the v1.3.0 release card (an earlier install that rg-update / java-update bring to this card); not a target
 V13="${PMCP_V13_SD:-$SDB/../sd-v1.3.0}/pmcp/pmcp.sh"
 # "exp:ACTION": the last experimental card (Android Auto), likewise only to prepare a unit
@@ -49,8 +54,11 @@ confirm_set() {
     [ -s "$U/carplaymaps/HMI_BOOT" ] || return 0
     mkdir -p "$W/unit/mnt/persist/pmcp"; read s rest < "$U/carplaymaps/HMI_BOOT"
     touch "$W/unit/mnt/persist/pmcp/trial.$s" "$W/unit/mnt/persist/pmcp/ok.$s"
+    echo "set=$s use=yes" > "$W/unit/mnt/persist/pmcp/last-boot"
 }
 bootsim() {
+    # A physical power loss clears MMX RAM, including a lock left by kill -9 in this harness.
+    rm -rf "$W/unit/ramdisk"; mkdir -p "$W/unit/ramdisk"
     rm -rf "$W/bs"; cp -Rp "$W/unit" "$W/bs"; L="$W/bs/mnt/app/eso/hmi/lsd/lsd.sh"
     grep -q '>>> pmcp' "$L" || { echo "boot=factory-lsd"; return; }
     { echo 'BASE_DIR=/X; BOOTCLASSPATH=-Xbootclasspath/a:/ifs/lsd.jxe; RUN_MODE='
@@ -64,18 +72,30 @@ state() { run status; sed -n 's/^Unit state: //p' "$W/out"; }
 
 CHAIN=("v13:install map-clean" "v13:java-on nai" "v13:rg-system-on" "v13:java-on rglu" "rg-update" "java-update" "java-on np" \
        "switch map-clean-l40" "java-off np" "java-off rg" "rg-system-off" "java-off nai" "restore" \
-       "install map-square-fps40" "rg-system-on" "java-on rg" "java-on zoom" "restore" \
+       "install map-square-fps40" "rg-system-on" "java-on rg" "java-on sl" \
+       "speedlimit-mode turnto" "speedlimit-mode off" "java-off sl" "java-on zoom" "restore" \
        "exp:install map-clean" "exp:aa-on gamma" "aa-remove" "exp:aa-on most" "restore")
+if [ "${PMCP_FAULT_SCOPE:-all}" = speedlimit ]; then
+    CHAIN=("install map-clean" "java-on nai" "java-on sl" "speedlimit-mode turnto" "speedlimit-mode off" "java-off sl" "restore")
+fi
 fresh_unit; FACTORY=$(snapshot)
 for ((t=0; t<${#CHAIN[@]}; t++)); do
     target=${CHAIN[$t]}
     case "$target" in v13:*|exp:*) continue ;; esac
+    if [ "${PMCP_FAULT_SCOPE:-all}" = speedlimit ]; then
+        case "$target" in "java-on sl"|"java-off sl"|"speedlimit-mode "*) ;; *) continue ;; esac
+    fi
     fresh_unit
     for ((p=0; p<t; p++)); do
         run ${CHAIN[$p]}; grep -q "_OK" "$W/out" || { echo "prep ${CHAIN[$p]} failed"; cat "$W/out"; exit 99; }; confirm_set
     done
     rm -rf "$W/tpl"; cp -Rp "$W/unit" "$W/tpl"
     before_boot=$(cat "$W/tpl/mnt/app/carplaymaps/HMI_BOOT" 2>/dev/null)
+    before_mode=$(mode_digest)
+    case "$target" in
+        "speedlimit-mode "*) after_mode=$(printf '%s\n' "${target#speedlimit-mode }" | shasum -a 256 | cut -d' ' -f1) ;;
+        *) after_mode="$before_mode" ;;
+    esac
     n=1
     while :; do
         rm -rf "$W/unit"; cp -Rp "$W/tpl" "$W/unit"
@@ -85,6 +105,13 @@ for ((t=0; t<${#CHAIN[@]}; t++)); do
         fi
         CASES=$((CASES+1))
         killed=$(tail -1 "$W/filog" 2>/dev/null | sed "s#$W##g")
+        case "$target" in
+            "speedlimit-mode "*)
+                now_mode=$(mode_digest)
+                [ "$now_mode" = "$before_mode" ] || [ "$now_mode" = "$after_mode" ] \
+                    || bad "[$target] kill@$n ($killed): partially published mode file"
+                ;;
+        esac
         bs=$(bootsim)
         now_boot=$(cat "$U/carplaymaps/HMI_BOOT" 2>/dev/null)
         # use=yes is fine for the set from before the action, or for a set the user had confirmed before (its own ok

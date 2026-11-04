@@ -409,7 +409,7 @@ check_sha "$LSD_JAR" "$LSD_JAR_SHA" "converted lsd.jar"
 
 # ---- 7. components ------------------------------------------------------------------------------------------------
 step 7 "Building the components" \
-    "core.so map variants, NavActiveIgnore, now playing, zoom and day/night, route guidance." \
+    "core.so map variants, NavActiveIgnore, now playing, zoom and day/night, route guidance, native speed limit." \
     "Every component checks its inputs, verifies its patched bytes and runs its own host test."
 run "core.so map layout variants (from the pinned omonob base)" python3 -I "$PROJ/patches/mu1161/build_core.py" \
     "$WS/upstream/mib/$CORE_BASE" "$BUILD/mu1161-791/tuning"
@@ -418,6 +418,7 @@ run_long "pmcp-np.jar (track title and artist)" bash "$PROJ/nowplaying/build.sh"
 run_long "pmcp-zoom.jar and pmcp-dn.jar (zoom, day/night)" bash "$PROJ/hmiextras/build.sh" "$LSD_JAR" "$BUILD/extras-mu1161-v2"
 run_long "route guidance (pmcp-rg.jar with lanes, distance bar, street and maneuver fallbacks; iAP2 driver, iap2.cfg, reader)" \
     bash "$PROJ/rg/build.sh" "$LSD_JAR" "$BUILD/rg-mu1161-lanes-uturn-asf-m" lanes-uturn-asf-m
+run_long "optional native-map speed-limit reader (pmcp-sl.jar)" bash "$PROJ/speedlimit/build.sh" "$LSD_JAR" "$BUILD/sl-mu1161"
 ok "all components built"
 
 # ---- 8. installer and card folders ------------------------------------------------------------------------------

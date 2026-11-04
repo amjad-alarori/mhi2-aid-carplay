@@ -3,12 +3,13 @@
 # Host tests for pmcp.sh against a fake unit tree built from our MU1161 backup, plus an execution
 # test of the generated lsd.sh blocks (trial boot) over several simulated boots.
 #   run_tests.sh SD_BUILD_DIR SHELL [SHELL...]
+#   PMCP_TEST_SCOPE=speedlimit runs the optional reader cases against a fresh unit.
 # Each scenario starts from a fresh factory tree. Exit status is the number of failed checks.
 set -u
 SDB=$(cd "${1:?sd build dir}" && pwd); shift
 REPO=$(cd "$(dirname "$0")/../../.." && pwd)
 BK="${PMCP_BACKUP:-$REPO/backup/MU1161}/advanced/MU1161-appimg"
-export PMCP_TEST_GAWK="$REPO/upstream/tools/gawk-3.1.5/gawk"
+export PMCP_TEST_GAWK="${PMCP_TEST_GAWK:-$REPO/upstream/tools/gawk-3.1.5/gawk}"
 FAILS=0
 W=$(mktemp -d /tmp/pmcp-test.XXXX)
 STOCK_LSD=97bbd4ecb51045b34c2a41955d9f53e1f144d174bff1aa8560e911525808e8d8
@@ -36,7 +37,7 @@ h() { shasum -a 256 < "$1" | cut -d' ' -f1; }
 
 fresh_unit() {
     rm -rf "$W/unit" "$W/sd"
-    mkdir -p "$W/unit/ifs" "$W/unit/mnt/app/eso/bin/apps" "$W/unit/mnt/app/eso/hmi/lsd/jars" "$W/unit/mnt/app/armle/usr/bin" "$W/unit/mnt/persist/etc" \
+    mkdir -p "$W/unit/ifs" "$W/unit/ramdisk" "$W/unit/mnt/app/eso/bin/apps" "$W/unit/mnt/app/eso/hmi/lsd/jars" "$W/unit/mnt/app/armle/usr/bin" "$W/unit/mnt/persist/etc" \
         "$W/unit/mnt/app/armle/lib/dll" "$W/unit/mnt/system/etc/mm"
     cp "$BK/armle/lib/dll/ipod-drvr-iap2.so" "$W/unit/mnt/app/armle/lib/dll/"
     cp "$BK/../MU1161-system/mm/iap2.cfg" "$W/unit/mnt/system/etc/mm/"
@@ -65,6 +66,7 @@ for SH in "$@"; do
     echo "=== shell: $SH"
     U="$W/unit/mnt/app"
 
+    if [ "${PMCP_TEST_SCOPE:-all}" != speedlimit ]; then
     echo "[1] verify on factory unit"
     fresh_unit; before=$(snapshot "$W/unit")
     run verify; rc_is 0; expect_out "PMCP_VERIFY_OK state=STOCK" "state STOCK"
@@ -300,7 +302,7 @@ for SH in "$@"; do
         fi
         args=$(sed -n 's#^/bin/ksh /net/mmx/fs/sda0/pmcp/pmcp.sh ##p' "$m")
         case "$args" in
-            verify|status|restore|java-retry|java-confirm|java-update|aa-remove|rg-system-on|rg-system-off|rg-update|"install "*|"switch "*|"java-on "*|"java-off "*) ;;
+            verify|status|restore|java-retry|java-confirm|java-update|aa-remove|rg-system-on|rg-system-off|rg-update|speedlimit-status|"speedlimit-mode turnto"|"speedlimit-mode off"|"install "*|"switch "*|"java-on "*|"java-off "*) ;;
             *) bad "unexpected button command in $(basename "$m"): $args" ;;
         esac
         set -- $args
@@ -593,6 +595,83 @@ PEOF
         run install map-clean > /dev/null; run java-on $gone; rc_is 1; expect_out "UNKNOWN_JAVA_PACKAGE_$gone" "$gone is not a package of this card"
         run restore > /dev/null
     done
+
+    fi
+    echo "[22] optional native speed-limit reader: confirmed opt-in, persistent mode, disable and removal"
+    fresh_unit
+    SLP="$W/unit/mnt/persist/pmcp"; SLM="$SLP/native-speedlimit-mode"
+    SLL="$W/unit/ramdisk/pmcp-speedlimit.lock"
+    before=$(snapshot "$W/unit")
+    run speedlimit-status; rc_is 0; expect_out "Saved native speed-limit mode: off (default)" "absent mode defaults off"
+    [ "$before" = "$(snapshot "$W/unit")" ] && ok "reader status is read-only" || bad "reader status changed files"
+    run speedlimit-mode off; rc_is 0
+    [ ! -e "$SLP" ] && ok "disable on factory unit creates no configuration" || bad "disable created persist files"
+    mkdir -p "$SLP"
+    printf street > "$SLM"
+    run speedlimit-status; rc_is 0; expect_out "mode: invalid (reader output is off)" "mode without final LF reported invalid"
+    printf 'street\n\n' > "$SLM"
+    run speedlimit-status; rc_is 0; expect_out "mode: invalid (reader output is off)" "mode with an extra LF reported invalid"
+    printf 'street\n' > "$SLM"
+    run speedlimit-status; rc_is 0; expect_out "mode: street" "exact current-road mode reported valid"
+    printf 'turnto\n' > "$SLM"
+    run speedlimit-status; rc_is 0; expect_out "mode: turnto" "exact next-road mode reported valid"
+    printf 'off\n' > "$SLM"
+    run speedlimit-status; rc_is 0; expect_out "mode: off" "exact disabled mode reported valid"
+    run speedlimit-mode unknown; rc_is 1; expect_out "UNKNOWN_SPEEDLIMIT_MODE" "unknown mode refused"
+    run speedlimit-mode turnto; rc_is 1; expect_out "SPEEDLIMIT_NEEDS_JAVA_STATE_STOCK" "enable needs Java install"
+    run install map-square; rc_is 0; run java-on nai; rc_is 0
+    run speedlimit-mode turnto; rc_is 1; expect_out "SPEEDLIMIT_PACKAGE_NOT_INSTALLED" "enable needs sl package"
+    mkdir -p "$SLP"; echo turnto > "$SLM"
+    run java-on sl; rc_is 0; expect_out "PMCP_JAVA_ON_OK package=sl" "install optional reader"
+    [ ! -e "$SLM" ] && ok "install clears stale mode to off" || bad "reader installed with stale active mode"
+    read slset sljars < "$U/carplaymaps/HMI_BOOT"
+    slboot=$(cat "$U/carplaymaps/HMI_BOOT")
+    run speedlimit-mode turnto; rc_is 1; expect_out "SPEEDLIMIT_CONFIRM_JAVA_SET_FIRST" "enable before trial refused"
+    unit_boot > /dev/null
+    run speedlimit-mode turnto; rc_is 1; expect_out "SPEEDLIMIT_CONFIRM_JAVA_SET_FIRST" "unconfirmed running trial refused"
+    run java-confirm; rc_is 0
+    run speedlimit-mode turnto; rc_is 0; expect_out "PMCP_SPEEDLIMIT_MODE_OK mode=turnto" "confirmed running trial can enable"
+    [ "$(cat "$SLM")" = turnto ] && [ "$slboot" = "$(cat "$U/carplaymaps/HMI_BOOT")" ] \
+        && ok "mode saved without changing Java set" || bad "mode or Java set changed incorrectly"
+    unit_boot > /dev/null
+    [ "$(cat "$SLM")" = turnto ] && ok "mode survives a confirmed boot" || bad "mode lost at reboot"
+    run speedlimit-mode street; rc_is 0
+    [ "$(cat "$SLM")" = street ] && ok "CLI can select current-road text" || bad "street mode not saved"
+    echo "set=$slset use=no" > "$SLP/last-boot"
+    run speedlimit-mode turnto; rc_is 1; expect_out "SPEEDLIMIT_NOT_RUNNING_THIS_SET" "fallback cannot enable despite old ok marker"
+    [ "$(cat "$SLM")" = street ] && ok "failed enable preserves saved mode" || bad "failed enable changed mode"
+    echo "set=other use=yes" > "$SLP/last-boot"
+    run speedlimit-mode turnto; rc_is 1; expect_out "SPEEDLIMIT_NOT_RUNNING_THIS_SET" "stale other-set boot cannot enable"
+    echo "set=$slset use=yes" > "$SLP/last-boot"
+    touch "$SLP/DISABLED"
+    run speedlimit-mode turnto; rc_is 1; expect_out "JAVA_DISABLED_BY_RESCUE_CARD" "rescue-disabled set cannot enable"
+    # Disable must still work when the card, firmware and running-set checks all fail.
+    echo corrupt > "$W/sd/bin/selftest.bin"
+    truncate -s 1 "$W/unit/ifs/lsd.jxe"
+    run speedlimit-mode off; rc_is 0; expect_out "PMCP_SPEEDLIMIT_MODE_OK mode=off" "disable bypasses card and firmware checks"
+    [ "$(cat "$SLM")" = off ] && ok "fallback disable is persistent" || bad "fallback disable failed"
+    printf 'PMCP_NATIVE_SPEEDLIMIT\nvalue=70\n' > "$W/unit/ramdisk/pmcp-speedlimit.state"
+    before=$(snapshot "$W/unit")
+    run speedlimit-status; rc_is 0; expect_out "value=70" "status shows reader snapshot even during fallback"
+    [ "$before" = "$(snapshot "$W/unit")" ] && ok "snapshot viewing is read-only" || bad "snapshot viewer changed files"
+    cp "$SDB/pmcp/bin/selftest.bin" "$W/sd/bin/selftest.bin"
+    truncate -s 55830309 "$W/unit/ifs/lsd.jxe"
+    rm -f "$SLP/DISABLED"
+    run speedlimit-mode turnto; rc_is 0
+    mkdir "$SLL"; echo owner > "$SLL/owner"
+    run speedlimit-mode off; rc_is 1; expect_out "SPEEDLIMIT_LOCK_BUSY" "competing mode action refused"
+    [ "$(cat "$SLM")" = turnto ] && [ "$(cat "$SLL/owner")" = owner ] && ok "loser preserves owner's lock and mode" || bad "loser changed lock or mode"
+    run java-off sl; rc_is 1; expect_out "SPEEDLIMIT_LOCK_BUSY" "Java removal shares the mode lock"
+    rm -rf "$SLL"
+    run java-off nai; rc_is 0
+    [ "$(cat "$SLM")" = turnto ] && ok "removing another package preserves the mode" || bad "unrelated removal cleared mode"
+    run java-off sl; rc_is 0
+    [ ! -e "$SLM" ] && [ ! -e "$U/eso/hmi/lsd/jars/pmcp-sl.jar" ] && ok "reader removal clears configuration and jar" || bad "reader removal left state"
+    run speedlimit-mode off; rc_is 0
+    run java-on sl; rc_is 0; unit_boot > /dev/null; run java-confirm; rc_is 0
+    run speedlimit-mode turnto; rc_is 0
+    run restore; rc_is 0
+    [ ! -e "$SLP" ] && [ ! -e "$SLL" ] && ok "full restore clears mode and lock" || bad "full restore left mode or lock"
 
 done
 

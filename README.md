@@ -30,6 +30,7 @@ This repository holds only what is specific to this head unit. It builds on the 
 | CarPlay track title and artist on the AID | works |
 | Day/night switching of the cluster map | works |
 | Speed limit from the phone (`showSpeedLimit=yes`) | shows nothing on this unit |
+| Optional native VW map speed limit in navigation text during CarPlay guidance | 50 → 70 km/h update confirmed on an e-Golf AID 795A. Persistent activation awaits vehicle validation. [Details](docs/en/16-native-speed-limits.md) |
 
 iAP2 route guidance carries no numeric speed limit (research by
 [maxim-smirnov/mhi2-carplay-cluster](https://github.com/maxim-smirnov/mhi2-carplay-cluster) on iOS 26.6/27);
@@ -58,6 +59,7 @@ More photos and an interactive model of the AID frame (where the video lands on 
 | [`rg/`](rg/) | Native route guidance (one package `rg`): port of tomasz-twardzicki's MU1427 solution to MU1161 (iAP2 RouteGuidance → BAP) with his lanes, distance bar and street name, our U-turn lanes and maneuver fallbacks, our iAP2 log gate and reader | Java, iAP2 driver, `iap2.cfg`, reader |
 | [`nowplaying/`](nowplaying/) | CarPlay track title and artist on the cluster | Java (HMI) |
 | [`hmiextras/`](hmiextras/) | Steering-wheel zoom and day/night resend for the cluster map | Java (HMI) |
+| [`speedlimit/`](speedlimit/) | Optional native VW map speed limit in the cluster's navigation text | Java (HMI), saved opt-in setting |
 | [`installer/`](installer/) | SD-card installer run from the M.I.B. GEM menu, the rescue card, host tests | nothing by itself |
 | [`buildtools/`](buildtools/) | Host checks: try/catch guard around every hook call, J9 CDC API check | nothing |
 | [`scripts/`](scripts/) | Read-only firmware readers (QNX6, IFS, LZOZ, JXE → JAR), SD-card tester | nothing |

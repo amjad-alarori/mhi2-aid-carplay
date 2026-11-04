@@ -34,7 +34,9 @@ JAVA_PACKAGES = [("nai", "nai: AID map stays while the iPhone navigates (NavActi
                  ("np", "np: CarPlay song title and artist on the AID"),
                  ("rg", "rg: route guidance: arrows, lanes, distance bar, street, ETA (needs Route guidance system)"),
                  ("zoom", "zoom: CarPlay map zoom with the steering wheel arrows"),
-                 ("dn", "dn: CarPlay map day/night on the AID (sent again after start)")]
+                 ("dn", "dn: CarPlay map day/night on the AID (sent again after start)"),
+                 # optional (not in button 3), output off until enabled with speedlimit-mode
+                 ("sl", "sl: native VW map speed limit in the AID road text (optional, output off until enabled)")]
 # rg = everything for route guidance in one package (v1.4): Tomasz's port + his lanes, our VW U-turn lanes, his MU1367
 # v1.4.3 distance bar / street name / feed recovery, and the maneuver fallbacks (rg/build.sh lanes-uturn-asf-m; the
 # experimental branch's rgluasfm, car-tested 2026-11-04). The rg and rglu of v1.3 and the experimental rg variants are
@@ -85,6 +87,9 @@ PAYLOAD = {
                  "046f48210dbee3177fbaa2a25f69154b56055f59b074fced1a0202700dd78d7b", 4740, "jars/pmcp-zoom.jar"),
     "JAR_dn": (PROJ / "build/extras-mu1161-v2/pmcp-dn.jar",
                "aabe871e87510177a333f1a76d69015f8bdeb994fba4ad1251e1b7f2b5afbd70", 11421, "jars/pmcp-dn.jar"),
+    # Optional native-map limit reader, output is enabled separately after confirming the Java set.
+    "JAR_sl": (PROJ / "build/sl-mu1161/pmcp-sl.jar",
+               "79bca4e4ec9f69d8536960d096725c5e9e95b2012dd8033c97319bb1d22fb002", 18202, "jars/pmcp-sl.jar"),
     # Tomasz's driver patch + our log gate: his RGI receive log only with /dev/shmem/pmcp-rgi-debug (rg/driver/)
     "RG_DRIVER": (PROJ / "build/rg-mu1161-lanes-uturn-asf-m/ipod-drvr-iap2-gated.so",
                   "519ea3c5ba08427ea20d62817747af390ac7256bad447da5fcfda388d10b9ed3", 743272, "rg/ipod-drvr-iap2.so"),
@@ -327,7 +332,10 @@ def menu_entries():
            ("timeline", TIMELINE, "Start timeline: seconds from unit start to CarPlay, MOST, navigation (read-only)"),
            ("rglast", RGLAST, "RG last maneuver: what the iPhone sent and which VW arrow it gives (read-only)"),
            ("navdiag", NAVDIAG, "Navigation diagnostics: why the VW navigation does not start (read-only)"),
-           ("aa-remove", "aa-remove", "Remove experimental Android Auto (factory gal back; button 3 does it too)")]
+           ("aa-remove", "aa-remove", "Remove experimental Android Auto (factory gal back; button 3 does it too)"),
+           ("speedlimit-on", "speedlimit-mode turnto", "Native speed limit: enable next-road text after installing and confirming sl"),
+           ("speedlimit-off", "speedlimit-mode off", "Native speed limit: disable road text"),
+           ("speedlimit-status", "speedlimit-status", "Native speed limit: saved mode and reader snapshot (read-only)")]
     inst = [("install-" + v, "install " + v, "Install map layout: " + v) for v in VARIANTS if v != START_VARIANT]
     sw = [("switch-" + v, "switch " + v, "Switch map layout to: " + v) for v in VARIANTS]
     rg = [("rg-system-on", "rg-system-on", "Route guidance system on (iAP2 driver, iap2.cfg, reader)"),
@@ -342,9 +350,9 @@ def menu_entries():
 # actions of "Install all features or update", in order: an experimental card's Android Auto off (aa-remove), an earlier
 # card's RG driver/reader and Java packages replaced by
 # this card's (rg-update, java-update), the main map (an older install gets START_VARIANT, already there: skipped), the
-# route guidance system (rg needs it), then every package. Steps already done answer *_ALREADY_* and are skipped, so
+# route guidance system (rg needs it), then every package except the optional sl. Steps already done answer *_ALREADY_* and are skipped, so
 # the same button brings any earlier pmcp install to this card's set.
-ALL_ON = ["aa-remove", "rg-update", "java-update", "switch_" + START_VARIANT, "rg-system-on"] + ["java-on_" + n for n, _ in JAVA_PACKAGES]
+ALL_ON = ["aa-remove", "rg-update", "java-update", "switch_" + START_VARIANT, "rg-system-on"] + ["java-on_" + n for n, _ in JAVA_PACKAGES if n != "sl"]
 
 
 def menu_script(args, label):
