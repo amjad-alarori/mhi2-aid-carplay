@@ -926,7 +926,7 @@ do_speedlimit_mode() {
     [ -d "$PERSIST" ] || fail "SPEEDLIMIT_PERSIST_DIRECTORY_MISSING"
     [ ! -d "$SL_MODE" ] || fail "SPEEDLIMIT_MODE_IS_DIRECTORY"
     rm -f "$SL_MODE.pmcp-new" || fail "SPEEDLIMIT_MODE_STAGE_CLEANUP_FAILED"
-    ( printf '%s\n' "$ARG" > "$SL_MODE.pmcp-new" ) || fail "SPEEDLIMIT_MODE_STAGE_FAILED"
+    ( echo "$ARG" > "$SL_MODE.pmcp-new" ) || fail "SPEEDLIMIT_MODE_STAGE_FAILED"
     mv "$SL_MODE.pmcp-new" "$SL_MODE" || fail "SPEEDLIMIT_MODE_COMMIT_FAILED"
     flush
     say "PMCP_SPEEDLIMIT_MODE_OK mode=$ARG (saved across reboots)"
